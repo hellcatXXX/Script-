@@ -1,0 +1,343 @@
+desc: DYNAMIC CAR PUNCH + Decent Stereo (Fixed)
+input_gain:<-12,12,0.5> input gain (dB)
+
+// Dynamic EQ
+sub_bass:<0,12,0.5> sub bass max boost (dB)
+punch:<0,12,0.5> punch max boost (dB)
+warmth:<-6,6,0.5> warmth (dB)
+mid_cut:<-12,0,0.5> mid scoop (dB)
+presence:<-6,6,0.5> presence (dB)
+air:<-6,6,0.5> air (dB)
+
+// Multiband Compression
+mb_threshold:<-30,-6,1> MB threshold (dB)
+mb_ratio:<1,10,0.5> MB ratio
+mb_attack:<1,50,1> MB attack (ms)
+mb_release:<10,500,10> MB release (ms)
+low_comp:<0,1,0.01> low band comp
+mid_comp:<0,1,0.01> mid band comp  
+high_comp:<0,1,0.01> high band comp
+
+// Decent Stereo
+width:<0.5,1.5,0.05> stereo width (1.0=normal)
+mono_low:<50,300,10> mono bass below (Hz)
+spread_high:<0,1,0.01> high frequency spread
+delay_ms:<0,20,0.5> haas delay (ms)
+crossfeed:<0,0.5,0.01> headphone crossfeed
+balance:<-6,6,0.5> L/R balance (dB)
+
+// Reverb
+reverb_mix:<0,0.5,0.01> reverb mix
+reverb_decay:<0.1,3,0.1> reverb decay (s)
+
+// Transient
+transient_boost:<0,10,0.5> transient punch (dB)
+
+// Output
+output_gain:<-12,0,0.5> output trim (dB)
+dry_wet:<0,1,0.01> dry/wet mix
+
+@init
+// Parameters
+input_gain = -2.0;
+
+// Low end shaping
+sub_bass = 8.5;      // big but controlled
+punch = 7.0;         // kick impact
+warmth = 1.5;        // low-mid thickness
+mid_cut = -3.5;      // vocal space
+presence = 2.5;      // vocal clarity
+air = 1.5;           // smooth shine
+
+// Multiband compression (groove friendly)
+mb_threshold = -18;
+mb_ratio = 3.0;
+mb_attack = 18;      // let transients through
+mb_release = 140;    // groove bounce
+low_comp = 0.65;
+mid_comp = 0.35;
+high_comp = 0.20;
+
+// Stereo image
+width = 1.10;        // wide but stable
+mono_low = 140;      // strong mono bass
+spread_high = 0.28;
+delay_ms = 7.5;
+crossfeed = 0.05;
+
+// Reverb (master = subtle only)
+reverb_mix = 0.06;
+reverb_decay = 0.7;
+
+// Transient
+transient_boost = 3.5;
+
+// Output
+output_gain = -1.50;  // headroom for limiter
+dry_wet = 1.0;
+// Memory layout - carefully organized
+// Delay lines first (fixed size)
+delayMax = 1000;  // 20ms at 48kHz = 960 samples, round up
+delayBufL = 0;
+delayBufR = delayMax;
+delayIdx = delayMax * 2;
+
+// Reverb buffers (comb filters)
+revBuf1 = delayIdx + 1;
+revBuf2 = revBuf1 + 2000;
+revBuf3 = revBuf2 + 2000;
+revBuf4 = revBuf3 + 2000;
+revIdx = revBuf4 + 2000;
+
+// Envelopes
+env_low = revIdx + 1;
+env_mid = env_low + 1;
+env_high = env_mid + 1;
+env_slow = env_high + 1;
+
+// Clear all
+memset(0, 0, env_slow + 5);
+mem[delayIdx] = 0;
+mem[revIdx] = 0;
+
+// Functions
+function db2lin(db) (10^(db/20););
+function lin2db(lin) (20*log10(abs(lin)+0.0001););
+function max(x,y) (x>y?x:y);
+function min(x,y) (x<y?x:y);
+function abs(x) (x<0?-x:x);
+
+function lowpass_set(fc, Q)(
+    w = 2*$pi*fc/srate; cs = cos(w); sn = sin(w); alpha = sn/(2*Q);
+    b0 = (1-cs)*0.5; b1 = 1-cs; b2 = b0; a0 = 1+alpha; a1 = -2*cs; a2 = 1-alpha;
+    this.b0=b0/a0; this.b1=b1/a0; this.b2=b2/a0; this.a1=a1/a0; this.a2=a2/a0;
+    this.x1=this.x2=this.y1=this.y2=0;
+);
+
+function highpass_set(fc, Q)(
+    w = 2*$pi*fc/srate; cs = cos(w); sn = sin(w); alpha = sn/(2*Q);
+    b0 = (1+cs)*0.5; b1 = -(1+cs); b2 = b0; a0 = 1+alpha; a1 = -2*cs; a2 = 1-alpha;
+    this.b0=b0/a0; this.b1=b1/a0; this.b2=b2/a0; this.a1=a1/a0; this.a2=a2/a0;
+    this.x1=this.x2=this.y1=this.y2=0;
+);
+
+function bandpass_set(fclo, fchi)(
+    w1 = 2*$pi*fchi/srate; cs1 = cos(w1); sn1 = sin(w1); alpha1 = sn1/(2*0.5);
+    this.lp.b0=(1-cs1)*0.5/(1+alpha1); this.lp.b1=(1-cs1)/(1+alpha1);
+    this.lp.b2=this.lp.b0; this.lp.a1=-2*cs1/(1+alpha1); this.lp.a2=(1-alpha1)/(1+alpha1);
+    w2 = 2*$pi*fclo/srate; cs2 = cos(w2); sn2 = sin(w2); alpha2 = sn2/(2*0.5);
+    this.hp.b0=(1+cs2)*0.5/(1+alpha2); this.hp.b1=-(1+cs2)/(1+alpha2);
+    this.hp.b2=this.hp.b0; this.hp.a1=-2*cs2/(1+alpha2); this.hp.a2=(1-alpha2)/(1+alpha2);
+);
+
+function bandpass_process(x)(
+    y = this.lp.b0*x + this.lp.b1*this.lp.x1 + this.lp.b2*this.lp.x2 - this.lp.a1*this.lp.y1 - this.lp.a2*this.lp.y2;
+    this.lp.x2=this.lp.x1; this.lp.x1=x; this.lp.y2=this.lp.y1; this.lp.y1=y;
+    z = this.hp.b0*y + this.hp.b1*this.hp.x1 + this.hp.b2*this.hp.x2 - this.hp.a1*this.hp.y1 - this.hp.a2*this.hp.y2;
+    this.hp.x2=this.hp.x1; this.hp.x1=y; this.hp.y2=this.hp.y1; this.hp.y1=z;
+    z;
+);
+
+function bell_set(freq, Q, gain_db)(
+    w = 2*$pi*freq/srate; A = 10^(gain_db/40); alpha = sin(w)/(2*Q); cs = cos(w);
+    b0 = 1 + alpha*A; b1 = -2*cs; b2 = 1 - alpha*A;
+    a0 = 1 + alpha/A; a1 = -2*cs; a2 = 1 - alpha/A;
+    this.b0=b0/a0; this.b1=b1/a0; this.b2=b2/a0; this.a1=a1/a0; this.a2=a2/a0;
+    this.x1=this.x2=this.y1=this.y2=0;
+);
+
+function biquad_process(x)(
+    y = this.b0*x + this.b1*this.x1 + this.b2*this.x2 - this.a1*this.y1 - this.a2*this.y2;
+    this.x2=this.x1; this.x1=x; this.y2=this.y1; this.y1=y;
+    y;
+);
+
+function soft_clip(x, drive)(
+    x = x * (1 + drive);
+    x > 1 ? (2 - 1/x) : (x < -1 ? (-2 + 1/(-x)) : x);
+);
+
+function comp_gain(env, thresh, ratio)(
+    env_db = lin2db(env);
+    env_db > thresh ? (over_db = env_db - thresh; gain_db = -over_db * (1 - 1/ratio); 10^(gain_db/20)) : 1.0;
+);
+
+// Initialize filters
+lowpassL.lowpass_set(200, 0.5); lowpassR.lowpass_set(200, 0.5);
+highpassL.highpass_set(4000, 0.5); highpassR.highpass_set(4000, 0.5);
+bandpassL.bandpass_set(200, 4000); bandpassR.bandpass_set(200, 4000);
+
+subL.bell_set(60, 0.8, 0); subR.bell_set(60, 0.8, 0);
+punchL.bell_set(120, 1.2, 0); punchR.bell_set(120, 1.2, 0);
+warmL.bell_set(250, 1.0, 0); warmR.bell_set(250, 1.0, 0);
+midL.bell_set(1000, 0.7, 0); midR.bell_set(1000, 0.7, 0);
+presL.bell_set(4000, 1.5, 0); presR.bell_set(4000, 1.5, 0);
+airL.highpass_set(8000, 0.5); airR.highpass_set(8000, 0.5);
+airShelfL.bell_set(12000, 0.6, 0); airShelfR.bell_set(12000, 0.6, 0);
+hpL.highpass_set(25, 0.7); hpR.highpass_set(25, 0.7);
+monoHpL.highpass_set(mono_low, 0.7); monoHpR.highpass_set(mono_low, 0.7);
+spreadL.highpass_set(4000, 0.5); spreadR.highpass_set(4000, 0.5);
+transL.highpass_set(2000, 0.5); transR.highpass_set(2000, 0.5);
+
+@sample
+// Update
+attack_c = exp(-1/(max(mb_attack,1) * 0.001 * srate));
+release_c = exp(-1/(max(mb_release,10) * 0.001 * srate));
+delaySamples = max(floor(delay_ms * srate / 1000), 1);
+
+// Input with balance
+balL = db2lin(balance);
+balR = db2lin(-balance);
+inL = spl0 * db2lin(input_gain) * balL;
+inR = spl1 * db2lin(input_gain) * balR;
+inL = hpL.biquad_process(inL);
+inR = hpR.biquad_process(inR);
+
+// === HAAS DELAY (Working) ===
+dIdx = mem[delayIdx];
+dPos = dIdx % delayMax;
+mem[delayBufL + dPos] = inL;
+mem[delayBufR + dPos] = inR;
+
+// Read delayed sample (opposite channel for width)
+delayReadPos = (dIdx - delaySamples + delayMax) % delayMax;
+delayedL = mem[delayBufL + delayReadPos];
+delayedR = mem[delayBufR + delayReadPos];
+mem[delayIdx] = dIdx + 1;
+
+// Haas blend
+haasL = inL * 0.7 + delayedR * 0.3 * min(delay_ms / 20, 1);
+haasR = inR * 0.7 + delayedL * 0.3 * min(delay_ms / 20, 1);
+
+// === MULTIBAND CAR PUNCH ===
+lowL = lowpassL.biquad_process(haasL);
+lowR = lowpassR.biquad_process(haasR);
+midL = bandpassL.bandpass_process(haasL);
+midR = bandpassR.bandpass_process(haasR);
+highL = highpassL.biquad_process(haasL);
+highR = highpassR.biquad_process(haasR);
+
+detect_low = abs(lowL) + abs(lowR);
+detect_mid = abs(midL) + abs(midR);
+detect_high = abs(highL) + abs(highR);
+
+env_low = detect_low > env_low ? attack_c * env_low + (1-attack_c) * detect_low : release_c * env_low + (1-release_c) * detect_low;
+env_mid = detect_mid > env_mid ? attack_c * env_mid + (1-attack_c) * detect_mid : release_c * env_mid + (1-release_c) * detect_mid;
+env_high = detect_high > env_high ? attack_c * env_high + (1-attack_c) * detect_high : release_c * env_high + (1-release_c) * detect_high;
+
+gain_low = comp_gain(env_low, mb_threshold, mb_ratio); gain_low = 1 - (1-gain_low) * low_comp;
+gain_mid = comp_gain(env_mid, mb_threshold, mb_ratio); gain_mid = 1 - (1-gain_mid) * mid_comp;
+gain_high = comp_gain(env_high, mb_threshold, mb_ratio); gain_high = 1 - (1-gain_high) * high_comp;
+
+lowL = lowL * gain_low; lowR = lowR * gain_low;
+midL = midL * gain_mid; midR = midR * gain_mid;
+highL = highL * gain_high; highR = highR * gain_high;
+
+// Dynamic EQ bass
+bassSum = (lowL + lowR) * 0.5;
+env_slow = release_c * env_slow + (1-release_c) * abs(bassSum);
+transient = max(env_low - env_slow, 0);
+
+env_db = lin2db(env_low);
+env_db < mb_threshold ? (
+    sub_gain = db2lin(sub_bass) * (1 + (mb_threshold-env_db)/abs(mb_threshold) * 0.3);
+) : (
+    reduction = pow(env_db / mb_threshold, 1.0/mb_ratio - 1.0);
+    sub_gain = db2lin(sub_bass) * reduction;
+);
+sub_gain = min(sub_gain, 3.0);
+
+bassSum = subL.biquad_process(bassSum) * sub_gain;
+bassSum = punchL.biquad_process(bassSum) * db2lin(punch);
+bassSum = warmL.biquad_process(bassSum) * db2lin(warmth);
+
+transL = transL.biquad_process(haasL);
+transR = transR.biquad_process(haasR);
+transient_add = (transL + transR) * 0.5 * transient * db2lin(transient_boost);
+bassSum = bassSum + transient_add * 0.2;
+bassSum = soft_clip(bassSum, 0.15);
+
+lowL = bassSum * 0.8 + lowL * 0.2;
+lowR = bassSum * 0.8 + lowR * 0.2;
+
+midL = midL.biquad_process(midL) * db2lin(mid_cut);
+midR = midR.biquad_process(midR) * db2lin(mid_cut);
+
+highL = presL.biquad_process(highL) * db2lin(presence);
+highR = presR.biquad_process(highR) * db2lin(presence);
+
+airSigL = airL.biquad_process(highL) * db2lin(air) * 0.5;
+airSigR = airR.biquad_process(highR) * db2lin(air) * 0.5;
+
+// === RECOMBINE ===
+procL = lowL + midL + highL + airSigL;
+procR = lowR + midR + highR + airSigR;
+
+// === REVERB (Working Schroeder) ===
+rIdx = mem[revIdx];
+
+// Comb filter 1
+rPos1 = rIdx % 2000;
+comb1 = mem[revBuf1 + rPos1];
+mem[revBuf1 + rPos1] = procL * reverb_mix + comb1 * 0.7;
+
+// Comb filter 2  
+rPos2 = rIdx % 2000;
+comb2 = mem[revBuf2 + rPos2];
+mem[revBuf2 + rPos2] = procR * reverb_mix + comb2 * 0.7;
+
+// Comb filter 3
+rPos3 = rIdx % 2000;
+comb3 = mem[revBuf3 + rPos3];
+mem[revBuf3 + rPos3] = procL * reverb_mix + comb3 * 0.6;
+
+// Comb filter 4
+rPos4 = rIdx % 2000;
+comb4 = mem[revBuf4 + rPos4];
+mem[revBuf4 + rPos4] = procR * reverb_mix + comb4 * 0.6;
+
+mem[revIdx] = rIdx + 1;
+
+// Mix reverb
+revL = (comb1 + comb3) * 0.5 * reverb_decay;
+revR = (comb2 + comb4) * 0.5 * reverb_decay;
+
+wetL = procL + revL;
+wetR = procR + revR;
+
+// === DECENT STEREO M/S ===
+mid = (wetL + wetR) * 0.5;
+side = (wetL - wetR) * 0.5;
+
+// Mono bass
+sideHp = monoHpL.biquad_process(side);
+sideHp = monoHpR.biquad_process(sideHp);
+
+// Apply width
+sideOut = sideHp * width;
+
+// High spread
+spreadL = spreadL.biquad_process(side) * spread_high;
+spreadR = spreadR.biquad_process(side) * spread_high;
+
+// Reconstruct
+msL = mid + sideOut + spreadL;
+msR = mid - sideOut - spreadR;
+
+// === CROSSFEED (Working) ===
+// Simple: mix some opposite channel
+crossL = msL * (1-crossfeed) + msR * crossfeed;
+crossR = msR * (1-crossfeed) + msL * crossfeed;
+
+// Soft clip
+outL = crossL / (1 + abs(crossL) * 0.1);
+outR = crossR / (1 + abs(crossR) * 0.1);
+outL = outL > 0.99 ? 0.99 : (outL < -0.99 ? -0.99 : outL);
+outR = outR > 0.99 ? 0.99 : (outR < -0.99 ? -0.99 : outR);
+
+// Final mix
+finalL = outL * dry_wet + inL * (1-dry_wet);
+finalR = outR * dry_wet + inR * (1-dry_wet);
+
+spl0 = finalL * db2lin(output_gain);
+spl1 = finalR * db2lin(output_gain);
