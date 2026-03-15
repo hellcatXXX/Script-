@@ -1,5 +1,5 @@
 desc:9D Immersive Audio with Binaural Tonal Presets
-author:Jasiah Vc
+author:Jasiah p
 tags: 9d binaural presets energetic hazy tonal brainwave
 
 // ============================================
@@ -35,8 +35,9 @@ saturation:25<0,50,1>Bass Saturation (%)
 // ============================================
 // BINAURAL TONAL PRESETS
 // ============================================
-binaural_preset:0<0,8,1{sober,Molly,ilean,shrooms,coke,xans,acid,adderall,XannyRoll}>Binaural Preset
-binaural_intensity:70<0,100,1>Tonal Intensity (%)
+binaural_preset:0<0,15,1{sober,Serotonix,DownShift,NeuroMeld,StimSear,SynapSeep,PsyWave,FocusFire,ContraDose,SpeedBall,Empathogen,Ketamine,DarkMatter,GlitchCore,NeuroLift,OptiMind}>Binaural Preset
+
+binaural_intensity:70<0,100,1>Experience Intensity (%)
 binaural_modulation:20<0,100,1>Tonal Movement (%)
 
 @init
@@ -52,13 +53,13 @@ function lin2db(lin)(20 * log10(max(abs(lin), 0.00001)););
 function tanh(x)(2 / (1 + exp(-2*x)) - 1;);
 
 // --- 9D SPATIAL ---
-mix = 20;
+mix = 10;
 space_size = 70;
 height = 50;
 depth = 80;
-movement = 30;
+movement = 50;
 movement_speed = 0.3;
-width = 140;
+width = 100;
 focus = 60;
 envelopment = 50;
 
@@ -76,8 +77,8 @@ target_thump = 35;
 saturation = 25;
 
 // --- BINAURAL ---
-binaural_preset = 5;
-binaural_intensity = 100;
+binaural_preset = 8;
+binaural_intensity = 9;
 binaural_modulation = 20;
 
 // --- CONSTANTS ---
