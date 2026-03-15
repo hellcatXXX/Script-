@@ -700,8 +700,7 @@ sampleCounter >= blockSizeSamples ? (
         targetTonalL = (sin(tonalPhases[0]) * 0.5 + sin(tonalPhases[2]) * 0.5) * tonalInt * modTone;
         targetTonalR = (sin(tonalPhases[1]) * 0.5 + sin(tonalPhases[3]) * 0.5) * tonalInt * modTone;
         
-    ) 
-binaural_preset == 8 ? (  // XANNYROLL - Xans + Molly clash
+    ) : binaural_preset == 8 ? (  // XANNYROLL - Xans + Molly clash
     // XANS layer (phases 0-1) - Theta 5/7Hz for dissociation
     w0 = twoPi * 5 * blockSizeMs / 1000;
     tonalPhases[0] += w0;
