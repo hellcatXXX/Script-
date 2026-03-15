@@ -1,5 +1,5 @@
 desc:9D Immersive Audio with Binaural Tonal Presets
-author:Jasiah p
+author:Jasiah Vc
 tags: 9d binaural presets energetic hazy tonal brainwave
 
 // ============================================
@@ -35,7 +35,7 @@ saturation:25<0,50,1>Bass Saturation (%)
 // ============================================
 // BINAURAL TONAL PRESETS
 // ============================================
-binaural_preset:0<0,2,1{sober,Molly,ilean}>Binaural Preset
+binaural_preset:0<0,8,1{sober,Molly,ilean,shrooms,coke,xans,acid,adderall,XannyRoll}>Binaural Preset
 binaural_intensity:70<0,100,1>Tonal Intensity (%)
 binaural_modulation:20<0,100,1>Tonal Movement (%)
 
@@ -52,7 +52,7 @@ function lin2db(lin)(20 * log10(max(abs(lin), 0.00001)););
 function tanh(x)(2 / (1 + exp(-2*x)) - 1;);
 
 // --- 9D SPATIAL ---
-mix = 40;
+mix = 20;
 space_size = 70;
 height = 50;
 depth = 80;
@@ -71,13 +71,13 @@ modal_movement = 20;
 sub_sensitivity = 50;
 low_sensitivity = 55;
 bass_response = 60;
-max_boost = 12.00;
+max_boost = 18.00;
 target_thump = 35;
 saturation = 25;
 
 // --- BINAURAL ---
-binaural_preset = 2;
-binaural_intensity = 70;
+binaural_preset = 5;
+binaural_intensity = 100;
 binaural_modulation = 20;
 
 // --- CONSTANTS ---
@@ -120,6 +120,18 @@ tonalHazyL[0] = 6;    // Theta
 tonalHazyR[0] = 10;   // Theta/Alpha + 4Hz diff
 tonalHazyL[1] = 4.5;  // Deep theta
 tonalHazyR[1] = 6.5;  // Theta + 2Hz diff
+
+// ============================================
+// PRESET CHANGE DETECTION
+// ============================================
+prevPreset = -1;
+presetChanged = 0;
+fadeCounter = 0;
+fadeTime = ceil(sr * 0.05); // 50ms fade
+currentTonalL = 0;
+currentTonalR = 0;
+targetTonalL = 0;
+targetTonalR = 0;
 
 // ============================================
 // MEMORY LAYOUT
@@ -241,7 +253,6 @@ cachedWetAmt = 0;
 cachedFocusAmt = 0;
 cachedEnvAmt = 0;
 cachedModalMix = 0;
-cachedTonalL = 0; cachedTonalR = 0;  // Binaural tones
 
 // ============================================
 // PRE-CALCULATED CONSTANTS
@@ -496,12 +507,24 @@ sampleCounter >= blockSizeSamples ? (
     cachedModalMix = modal_color / 100;
     
     // ============================================
+    // PRESET CHANGE DETECTION
+    // ============================================
+    binaural_preset != prevPreset ? (
+        presetChanged = 1;
+        fadeCounter = fadeTime;
+        prevPreset = binaural_preset;
+        // Reset phases on change
+        i = 0;
+        while(i < 8)(tonalPhases[i] = 0; i += 1;);
+    );
+    
+    // ============================================
     // BINAURAL TONAL GENERATION (10ms block)
     // ============================================
     tonalInt = binaural_intensity / 100;
     tonalMod = binaural_modulation / 100;
     
-    binaural_preset == 1 ? (  // ENERGETIC
+    binaural_preset == 1 ? (  // MOLLY - Euphoric, loving, energetic
         // Beta + Gamma waves for alertness
         // 15Hz left, 18Hz right = 3Hz binaural beat (alert)
         // 40Hz Gamma for cognitive enhancement
@@ -523,38 +546,210 @@ sampleCounter >= blockSizeSamples ? (
         // Modulation for movement
         modTone = 1 + sin(tonalPhases[0] * 0.1) * tonalMod * 0.2;
         
-        cachedTonalL = (sin(tonalPhases[0]) * 0.6 + sin(tonalPhases[2]) * 0.4) * tonalInt * modTone;
-        cachedTonalR = (sin(tonalPhases[1]) * 0.6 + sin(tonalPhases[3]) * 0.4) * tonalInt * modTone;
+        targetTonalL = (sin(tonalPhases[0]) * 0.6 + sin(tonalPhases[2]) * 0.4) * tonalInt * modTone;
+        targetTonalR = (sin(tonalPhases[1]) * 0.6 + sin(tonalPhases[3]) * 0.4) * tonalInt * modTone;
         
-    ) : binaural_preset == 2 ? (  // HAZY
+    ) : binaural_preset == 2 ? (  // ILEAN - Slowed, heavy, wavy
         // Theta + Alpha waves for relaxation
         // 6Hz left, 10Hz right = 4Hz diff (dreamy)
         // 4.5Hz deep theta for "slumped" feeling
         
         w0 = twoPi * 6 * blockSizeMs / 1000;
-        tonalPhases[4] += w0;
-        tonalPhases[4] >= twoPi ? tonalPhases[4] -= twoPi;
+        tonalPhases[0] += w0;
+        tonalPhases[0] >= twoPi ? tonalPhases[0] -= twoPi;
         w0 = twoPi * 10 * blockSizeMs / 1000;
-        tonalPhases[5] += w0;
-        tonalPhases[5] >= twoPi ? tonalPhases[5] -= twoPi;
+        tonalPhases[1] += w0;
+        tonalPhases[1] >= twoPi ? tonalPhases[1] -= twoPi;
         
         w0 = twoPi * 4.5 * blockSizeMs / 1000;
-        tonalPhases[6] += w0;
-        tonalPhases[6] >= twoPi ? tonalPhases[6] -= twoPi;
+        tonalPhases[2] += w0;
+        tonalPhases[2] >= twoPi ? tonalPhases[2] -= twoPi;
         w0 = twoPi * 6.5 * blockSizeMs / 1000;
-        tonalPhases[7] += w0;
-        tonalPhases[7] >= twoPi ? tonalPhases[7] -= twoPi;
+        tonalPhases[3] += w0;
+        tonalPhases[3] >= twoPi ? tonalPhases[3] -= twoPi;
         
         // Slower modulation for haziness
-        modTone = 1 + sin(tonalPhases[4] * 0.05) * tonalMod * 0.3;
+        modTone = 1 + sin(tonalPhases[0] * 0.05) * tonalMod * 0.3;
         
         // Softer waveform (blend of sines for warmth)
-        cachedTonalL = (sin(tonalPhases[4]) * 0.5 + sin(tonalPhases[6]) * 0.5) * tonalInt * modTone * 0.8;
-        cachedTonalR = (sin(tonalPhases[5]) * 0.5 + sin(tonalPhases[7]) * 0.5) * tonalInt * modTone * 0.8;
+        targetTonalL = (sin(tonalPhases[0]) * 0.5 + sin(tonalPhases[2]) * 0.5) * tonalInt * modTone * 0.8;
+        targetTonalR = (sin(tonalPhases[1]) * 0.5 + sin(tonalPhases[3]) * 0.5) * tonalInt * modTone * 0.8;
         
-    ) : (  // OFF
-        cachedTonalL = 0;
-        cachedTonalR = 0;
+    ) : binaural_preset == 3 ? (  // SHROOMS - Psychedelic, swirling, mystical
+        // Theta + Alpha waves for dreamlike state
+        // 6Hz left, 9Hz right = 3Hz diff (mystical)
+        // 5.5Hz deep theta for visual enhancement
+        
+        w0 = twoPi * 6 * blockSizeMs / 1000;
+        tonalPhases[0] += w0;
+        tonalPhases[0] >= twoPi ? tonalPhases[0] -= twoPi;
+        w0 = twoPi * 9 * blockSizeMs / 1000;
+        tonalPhases[1] += w0;
+        tonalPhases[1] >= twoPi ? tonalPhases[1] -= twoPi;
+        
+        w0 = twoPi * 5.5 * blockSizeMs / 1000;
+        tonalPhases[2] += w0;
+        tonalPhases[2] >= twoPi ? tonalPhases[2] -= twoPi;
+        w0 = twoPi * 7.5 * blockSizeMs / 1000;
+        tonalPhases[3] += w0;
+        tonalPhases[3] >= twoPi ? tonalPhases[3] -= twoPi;
+        
+        // Swirling modulation
+        modTone = 1 + sin(tonalPhases[0] * 0.08) * tonalMod * 0.25;
+        
+        targetTonalL = (sin(tonalPhases[0]) * 0.5 + sin(tonalPhases[2]) * 0.5) * tonalInt * modTone;
+        targetTonalR = (sin(tonalPhases[1]) * 0.5 + sin(tonalPhases[3]) * 0.5) * tonalInt * modTone;
+        
+    ) : binaural_preset == 4 ? (  // COKE - Sharp, focused, fast
+        // High Beta waves for intense focus
+        // 20Hz left, 23Hz right = 3Hz diff (alertness)
+        // 35Hz low Gamma for cognitive speed
+        
+        w0 = twoPi * 20 * blockSizeMs / 1000;
+        tonalPhases[0] += w0;
+        tonalPhases[0] >= twoPi ? tonalPhases[0] -= twoPi;
+        w0 = twoPi * 23 * blockSizeMs / 1000;
+        tonalPhases[1] += w0;
+        tonalPhases[1] >= twoPi ? tonalPhases[1] -= twoPi;
+        
+        w0 = twoPi * 35 * blockSizeMs / 1000;
+        tonalPhases[2] += w0;
+        tonalPhases[2] >= twoPi ? tonalPhases[2] -= twoPi;
+        w0 = twoPi * 37 * blockSizeMs / 1000;
+        tonalPhases[3] += w0;
+        tonalPhases[3] >= twoPi ? tonalPhases[3] -= twoPi;
+        
+        // Rapid sharp modulation
+        modTone = 1 + sin(tonalPhases[0] * 0.2) * tonalMod * 0.15;
+        
+        targetTonalL = (sin(tonalPhases[0]) * 0.6 + sin(tonalPhases[2]) * 0.4) * tonalInt * modTone;
+        targetTonalR = (sin(tonalPhases[1]) * 0.6 + sin(tonalPhases[3]) * 0.4) * tonalInt * modTone;
+        
+    ) : binaural_preset == 5 ? (  // XANS - Dissociated, numb, floating
+        // Low Theta + Alpha edge for sedation
+        // 5Hz left, 7Hz right = 2Hz diff (detached)
+        // 4Hz deep theta for floating sensation
+        
+        w0 = twoPi * 5 * blockSizeMs / 1000;
+        tonalPhases[0] += w0;
+        tonalPhases[0] >= twoPi ? tonalPhases[0] -= twoPi;
+        w0 = twoPi * 7 * blockSizeMs / 1000;
+        tonalPhases[1] += w0;
+        tonalPhases[1] >= twoPi ? tonalPhases[1] -= twoPi;
+        
+        w0 = twoPi * 4 * blockSizeMs / 1000;
+        tonalPhases[2] += w0;
+        tonalPhases[2] >= twoPi ? tonalPhases[2] -= twoPi;
+        w0 = twoPi * 5.5 * blockSizeMs / 1000;
+        tonalPhases[3] += w0;
+        tonalPhases[3] >= twoPi ? tonalPhases[3] -= twoPi;
+        
+        // Minimal modulation (numbness)
+        modTone = 1 + sin(tonalPhases[0] * 0.02) * tonalMod * 0.2;
+        
+        targetTonalL = (sin(tonalPhases[0]) * 0.5 + sin(tonalPhases[2]) * 0.5) * tonalInt * modTone * 0.7;
+        targetTonalR = (sin(tonalPhases[1]) * 0.5 + sin(tonalPhases[3]) * 0.5) * tonalInt * modTone * 0.7;
+        
+    ) : binaural_preset == 6 ? (  // ACID - Fractal, complex, mind-expanding
+        // Schumann resonance + Gamma for expanded consciousness
+        // 7.83Hz left, 11Hz right = 3.17Hz diff
+        // 40Hz Gamma for cognitive enhancement
+        
+        w0 = twoPi * 7.83 * blockSizeMs / 1000;
+        tonalPhases[0] += w0;
+        tonalPhases[0] >= twoPi ? tonalPhases[0] -= twoPi;
+        w0 = twoPi * 11 * blockSizeMs / 1000;
+        tonalPhases[1] += w0;
+        tonalPhases[1] >= twoPi ? tonalPhases[1] -= twoPi;
+        
+        w0 = twoPi * 40 * blockSizeMs / 1000;
+        tonalPhases[2] += w0;
+        tonalPhases[2] >= twoPi ? tonalPhases[2] -= twoPi;
+        w0 = twoPi * 42 * blockSizeMs / 1000;
+        tonalPhases[3] += w0;
+        tonalPhases[3] >= twoPi ? tonalPhases[3] -= twoPi;
+        
+        // Fractal modulation
+        modTone = 1 + (sin(tonalPhases[0] * 0.1) + sin(tonalPhases[2] * 0.07)) * tonalMod * 0.2;
+        
+        targetTonalL = (sin(tonalPhases[0]) * 0.5 + sin(tonalPhases[2]) * 0.5) * tonalInt * modTone;
+        targetTonalR = (sin(tonalPhases[1]) * 0.5 + sin(tonalPhases[3]) * 0.5) * tonalInt * modTone;
+        
+    ) : binaural_preset == 7 ? (  // ADDERALL - Productive, clean, sustained
+        // SMR (12-15Hz) + Beta for focus without anxiety
+        // 14Hz left, 16Hz right = 2Hz diff (calm alertness)
+        // 18Hz Beta for sustained attention
+        
+        w0 = twoPi * 14 * blockSizeMs / 1000;
+        tonalPhases[0] += w0;
+        tonalPhases[0] >= twoPi ? tonalPhases[0] -= twoPi;
+        w0 = twoPi * 16 * blockSizeMs / 1000;
+        tonalPhases[1] += w0;
+        tonalPhases[1] >= twoPi ? tonalPhases[1] -= twoPi;
+        
+        w0 = twoPi * 18 * blockSizeMs / 1000;
+        tonalPhases[2] += w0;
+        tonalPhases[2] >= twoPi ? tonalPhases[2] -= twoPi;
+        w0 = twoPi * 19.5 * blockSizeMs / 1000;
+        tonalPhases[3] += w0;
+        tonalPhases[3] >= twoPi ? tonalPhases[3] -= twoPi;
+        
+        // Steady minimal modulation
+        modTone = 1 + sin(tonalPhases[0] * 0.05) * tonalMod * 0.1;
+        
+        targetTonalL = (sin(tonalPhases[0]) * 0.5 + sin(tonalPhases[2]) * 0.5) * tonalInt * modTone;
+        targetTonalR = (sin(tonalPhases[1]) * 0.5 + sin(tonalPhases[3]) * 0.5) * tonalInt * modTone;
+        
+    ) 
+binaural_preset == 8 ? (  // XANNYROLL - Xans + Molly clash
+    // XANS layer (phases 0-1) - Theta 5/7Hz for dissociation
+    w0 = twoPi * 5 * blockSizeMs / 1000;
+    tonalPhases[0] += w0;
+    tonalPhases[0] >= twoPi ? tonalPhases[0] -= twoPi;
+    w0 = twoPi * 7 * blockSizeMs / 1000;
+    tonalPhases[1] += w0;
+    tonalPhases[1] >= twoPi ? tonalPhases[1] -= twoPi;
+    
+    // MOLLY layer (phases 2-3) - Beta 15/18Hz for euphoria
+    w0 = twoPi * 15 * blockSizeMs / 1000;
+    tonalPhases[2] += w0;
+    tonalPhases[2] >= twoPi ? tonalPhases[2] -= twoPi;
+    w0 = twoPi * 18 * blockSizeMs / 1000;
+    tonalPhases[3] += w0;
+    tonalPhases[3] >= twoPi ? tonalPhases[3] -= twoPi;
+    
+    // Clash modulation - slow drift between the two states
+    // Creates a "pulling" sensation between up and down
+    clashMod = sin(tonalPhases[0] * 0.03) * tonalMod * 0.5;  // Slow wave
+    xanWeight = 0.5 + clashMod;  // 0.0 to 1.0
+    mollyWeight = 1.0 - xanWeight;
+    
+    xanL = sin(tonalPhases[0]) * 0.5;
+    xanR = sin(tonalPhases[1]) * 0.5;
+    
+    mollyL = sin(tonalPhases[2]) * 0.6;
+    mollyR = sin(tonalPhases[3]) * 0.6;
+    
+    // Blend with the clash modulation
+    targetTonalL = (xanL * xanWeight + mollyL * mollyWeight) * tonalInt;
+    targetTonalR = (xanR * xanWeight + mollyR * mollyWeight) * tonalInt;
+    
+) : (  // OFF
+        targetTonalL = 0;
+        targetTonalR = 0;
+    );
+    
+    // ============================================
+    // FADE HANDLING FOR PRESET CHANGES
+    // ============================================
+    fadeCounter > 0 ? (
+        fadeAmt = fadeCounter / fadeTime;
+        currentTonalL = currentTonalL * fadeAmt + targetTonalL * (1 - fadeAmt);
+        currentTonalR = currentTonalR * fadeAmt + targetTonalR * (1 - fadeAmt);
+        fadeCounter -= 1;
+    ) : (
+        currentTonalL = targetTonalL;
+        currentTonalR = targetTonalR;
     );
 );
 
@@ -797,11 +992,11 @@ diffusedL = apOut6L;
 diffusedR = apOut6R;
 
 // ============================================
-// STEP 12: BINAURAL TONAL MIX (cached tones)
+// STEP 12: BINAURAL TONAL MIX (with fade handling)
 // ============================================
-// Add tonal binaural beats to spatial signal
-tonalL = diffusedL + cachedTonalL * 0.1;  // Subtle mix
-tonalR = diffusedR + cachedTonalR * 0.1;
+// Add tonal binaural beats to spatial signal with proper clearing
+tonalL = diffusedL + currentTonalL * 0.1;  // Subtle mix
+tonalR = diffusedR + currentTonalR * 0.1;
 
 // ============================================
 // STEP 13: EARLY REFLECTIONS (cached env)
