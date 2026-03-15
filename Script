@@ -1,471 +1,858 @@
-desc:Aggressive Tri-Band Bass Enhancer
-author:AI
-tags: bass enhancement multiband dynamics genre
+desc:9D Immersive Audio with Binaural Tonal Presets
+author:Jasiah p
+tags: 9d binaural presets energetic hazy tonal brainwave
 
-// Sub band (20-60Hz) - Rumble and weight
-sub_boost:12<0,24,0.5>Sub boost (dB)
-sub_squash:30<0,100,1>Sub squash amount (%)
+// ============================================
+// 9D SPATIAL CONTROLS
+// ============================================
+mix:40<0,100,1>Wet Mix (%)
+space_size:70<10,150,1>Space Size (%)
+height:50<0,100,1>Height Dimension (%)
+depth:80<10,150,1>Depth Front-Back (%)
+movement:30<0,100,1>Artist Movement (%)
+movement_speed:0.3<0.05,2.0,0.05>Movement Speed (Hz)
+width:140<0,200,1>Stereo Width (%)
+focus:60<0,100,1>Center Focus (%)
+envelopment:50<0,100,1>Room Envelopment (%)
 
-// Punch band (60-120Hz) - Chest thump
-punch_boost:9<0,18,0.5>Punch boost (dB)  
-punch_squash:20<0,100,1>Punch squash amount (%)
+// ============================================
+// GOERTZEL MODAL CONTROLS
+// ============================================
+modal_color:25<0,100,1>Modal Resonance (%)
+modal_spread:40<0,100,1>Modal Spread (%)
+modal_movement:20<0,100,1>Modal Movement (%)
 
-// Kick band (120-200Hz) - Beater click
-kick_boost:6<0,12,0.5>Kick boost (dB)
-kick_squash:25<0,100,1>Kick squash amount (%)
+// ============================================
+// DYNAMIC BASS CONTROLS (ANCHOR)
+// ============================================
+sub_sensitivity:50<0,100,1>Sub Tracking (%)
+low_sensitivity:55<0,100,1>Low Tracking (%)
+bass_response:60<10,100,1>Bass Response Speed (%)
+max_boost:6<0,18,0.5>Max Boost (dB)
+target_thump:35<0,100,1>Target Thump (%)
+saturation:25<0,50,1>Bass Saturation (%)
 
-// Drive/saturation
-bass_drive:30<0,100,1>Bass drive/saturation (%)
-
-// Psychoacoustic tricks
-harmonics:50<0,100,1>Harmonic enhancement (%)
-mono_bass:80<0,100,1>Mono bass below (Hz)
-transient_sharp:40<0,100,1>Transient sharpness (%)
-
-// Master
-master_gain:-2<-12,12,0.5>Master gain (dB)
-
-// Genre Presets - 16 genres
-genre:0<0,15,1{Custom,EDM/Dubstep,Hip-Hop,Rock/Metal,Pop,Techno/House,Jazz/Acoustic,Classical,Country,Reggae/Dub,Drum & Bass,Trap,Lo-Fi,R&B/Soul,Funk,Disco,Metalcore}>Genre
+// ============================================
+// BINAURAL TONAL PRESETS
+// ============================================
+binaural_preset:0<0,2,1{sober,Molly,ilean}>Binaural Preset
+binaural_intensity:70<0,100,1>Tonal Intensity (%)
+binaural_modulation:20<0,100,1>Tonal Movement (%)
 
 @init
-sub_boost = 6.00;
-punch_boost = 3.00;
-kick_boost = 4.00;
-sub_squash = 60;
-punch_squash = 25;
-kick_squash = 25;
-bass_drive = 15;
-harmonics = 25;
-mono_bass = 100;
-transient_sharp = 40;
-master_gain = 0.00;
-genre = 2;
+// ============================================
+// INIT
+// ============================================
+function abs(x)(x < 0 ? -x : x;);
+function clamp(x, lo, hi)(x < lo ? lo : (x > hi ? hi : x););
+function min(a, b)(a < b ? a : b;);
+function max(a, b)(a > b ? a : b;);
+function db2lin(db)(10^(db/20););
+function lin2db(lin)(20 * log10(max(abs(lin), 0.00001)););
+function tanh(x)(2 / (1 + exp(-2*x)) - 1;);
 
-// Block processing counter
-block_counter = 0;
-current_genre = -1; // Force update on first run
+// --- 9D SPATIAL ---
+mix = 40;
+space_size = 70;
+height = 50;
+depth = 80;
+movement = 30;
+movement_speed = 0.3;
+width = 140;
+focus = 60;
+envelopment = 50;
 
-// Utility functions
-function db2lin(db)(
-    10^(db/20);
+// --- MODAL ---
+modal_color = 25;
+modal_spread = 40;
+modal_movement = 20;
+
+// --- BASS ---
+sub_sensitivity = 50;
+low_sensitivity = 55;
+bass_response = 60;
+max_boost = 12.00;
+target_thump = 35;
+saturation = 25;
+
+// --- BINAURAL ---
+binaural_preset = 2;
+binaural_intensity = 70;
+binaural_modulation = 20;
+
+// --- CONSTANTS ---
+sr = srate;
+pi = 3.14159265359;
+twoPi = 2 * pi;
+DB_2_LOG = 0.11512925464970228420089957273422;
+sqrt2 = 1.41421356237;
+
+// ============================================
+// TIME-BASED BLOCK SIZES (ms to samples)
+// ============================================
+blockSizeMs = 10;  // 10ms blocks for parameter updates
+blockSizeSamples = ceil(sr * blockSizeMs / 1000);
+sampleCounter = 0;
+
+// ============================================
+// BINAURAL TONAL PRESET FREQUENCIES
+// ============================================
+// ENERGETIC: Beta waves (14-30Hz) + Gamma edge (40Hz)
+// Left ear: 15Hz, Right ear: 18Hz = 3Hz difference (alertness)
+// Plus 40Hz Gamma for cognitive enhancement
+
+// HAZY: Theta waves (4-8Hz) + Alpha edge (10Hz)
+// Left ear: 6Hz, Right ear: 10Hz = 4Hz difference (dreamy)
+// Plus 4.5Hz for deep relaxation
+
+// Tonal oscillators (4 per preset)
+tonalFreqs = 0;
+tonalPhases = tonalFreqs + 8;  // 8 total (4 per preset, L/R pairs)
+
+// Energetic preset frequencies
+tonalEnergeticL[0] = 15;   // Beta
+tonalEnergeticR[0] = 18;   // Beta + 3Hz diff
+tonalEnergeticL[1] = 40;   // Gamma
+tonalEnergeticR[1] = 40.5; // Gamma + slight diff
+
+// Hazy preset frequencies
+tonalHazyL[0] = 6;    // Theta
+tonalHazyR[0] = 10;   // Theta/Alpha + 4Hz diff
+tonalHazyL[1] = 4.5;  // Deep theta
+tonalHazyR[1] = 6.5;  // Theta + 2Hz diff
+
+// ============================================
+// MEMORY LAYOUT
+// ============================================
+delayBase = 2000;
+maxDelay = ceil(sr * 2.0);
+
+// Pre-delay
+preDelayL = delayBase;
+preDelayR = preDelayL + maxDelay + 10;
+preDelayPos = 0;
+
+// 8 Comb filters
+combBase = preDelayR + maxDelay + 10;
+comb1L = combBase; comb1R = comb1L + maxDelay + 10;
+comb2L = comb1R + maxDelay + 10; comb2R = comb2L + maxDelay + 10;
+comb3L = comb2R + maxDelay + 10; comb3R = comb3L + maxDelay + 10;
+comb4L = comb3R + maxDelay + 10; comb4R = comb4L + maxDelay + 10;
+comb5L = comb4R + maxDelay + 10; comb5R = comb5L + maxDelay + 10;
+comb6L = comb5R + maxDelay + 10; comb6R = comb6L + maxDelay + 10;
+comb7L = comb6R + maxDelay + 10; comb7R = comb7L + maxDelay + 10;
+comb8L = comb7R + maxDelay + 10; comb8R = comb8L + maxDelay + 10;
+
+combPos1 = 0; combPos2 = 0; combPos3 = 0; combPos4 = 0;
+combPos5 = 0; combPos6 = 0; combPos7 = 0; combPos8 = 0;
+
+// Height dimension
+heightBase = comb8R + maxDelay + 100;
+heightL = heightBase; heightR = heightL + 5000 + 10;
+heightPos = 0;
+
+// 6 All-pass
+apBase = heightR + 5000 + 10;
+ap1L = apBase; ap1R = ap1L + 8000 + 10;
+ap2L = ap1R + 8000 + 10; ap2R = ap2L + 8000 + 10;
+ap3L = ap2R + 8000 + 10; ap3R = ap3L + 8000 + 10;
+ap4L = ap3R + 8000 + 10; ap4R = ap4L + 8000 + 10;
+ap5L = ap4R + 8000 + 10; ap5R = ap5L + 8000 + 10;
+ap6L = ap5R + 8000 + 10; ap6R = ap6L + 8000 + 10;
+
+apPos1 = 0; apPos2 = 0; apPos3 = 0; apPos4 = 0; apPos5 = 0; apPos6 = 0;
+
+// Early reflections
+earlyBase = ap6R + 8000 + 100;
+earlyL = earlyBase; earlyR = earlyL + 5000 + 10;
+earlyPos = 0;
+
+// Binaural delay lines
+hrtfBase = earlyR + 5000 + 10;
+hrtfDelayL = hrtfBase; hrtfDelayR = hrtfDelayL + 2000 + 10;
+hrtfPos = 0;
+
+// ============================================
+// GOERTZEL MODAL (8 modes)
+// ============================================
+numModes = 8;
+modeBase = hrtfDelayR + 2000 + 10;
+modeFreqs = modeBase;
+modeCoeffs = modeFreqs + numModes;
+modeS1 = modeCoeffs + numModes;
+modeS2 = modeS1 + numModes;
+modeGains = modeS2 + numModes;
+modePan = modeGains + numModes;
+
+// ============================================
+// GOERTZEL BASS ANALYZERS (4 bins)
+// ============================================
+numBassBins = 4;
+bassFreqs = modePan + numModes + 10;
+bassCoeffs = bassFreqs + numBassBins;
+bassS1 = bassCoeffs + numBassBins;
+bassS2 = bassS1 + numBassBins;
+bassMags = bassS2 + numBassBins;
+bassSmooth = bassMags + numBassBins;
+
+bassBinFreqs[0] = 50; bassBinFreqs[1] = 80;
+bassBinFreqs[2] = 125; bassBinFreqs[3] = 200;
+
+// ============================================
+// ADAPTIVE BASS EQ STATES
+// ============================================
+subFreq = 70; subS = 0.8; subGain = 0;
+lowFreq = 120; lowQ = 2.5; lowGain = 0;
+
+subB0 = 0; subB1 = 0; subB2 = 0; subA1 = 0; subA2 = 0;
+subX1L = 0; subX2L = 0; subY1L = 0; subY2L = 0;
+subX1R = 0; subX2R = 0; subY1R = 0; subY2R = 0;
+
+lowB0 = 0; lowB1 = 0; lowB2 = 0; lowA1 = 0; lowA2 = 0;
+lowX1L = 0; lowX2L = 0; lowY1L = 0; lowY2L = 0;
+lowX1R = 0; lowX2R = 0; lowY1R = 0; lowY2R = 0;
+
+// ============================================
+// CROSSOVER STATES
+// ============================================
+hp400L = 0; hp400R = 0;
+lp400L = 0; lp400R = 0;
+
+// ============================================
+// 9D SPATIAL STATES
+// ============================================
+artistAngle = 0; heightPhase = 0; depthPhase = 0;
+smoothSize = 0; smoothDecay = 0;
+
+// ============================================
+// TIME-BLOCK CACHED PARAMETERS
+// ============================================
+// Updated every 10ms block
+cachedSmoothSize = 0;
+cachedSmoothDecay = 0;
+cachedWidthOffset = 0;
+cachedDampFactor = 0;
+cachedDistAtten = 0;
+cachedDepthDelay = 0;
+cachedHeightAlpha = 0;
+cachedArtistX = 0; cachedArtistY = 0; cachedArtistZ = 0;
+cachedMod1 = 0; cachedMod2 = 0;
+cachedWetAmt = 0;
+cachedFocusAmt = 0;
+cachedEnvAmt = 0;
+cachedModalMix = 0;
+cachedTonalL = 0; cachedTonalR = 0;  // Binaural tones
+
+// ============================================
+// PRE-CALCULATED CONSTANTS
+// ============================================
+hpAlpha400 = 400 / (sr * 0.5);
+hpAlpha400 = clamp(hpAlpha400, 0.001, 0.999);
+
+baseDelays[0] = 1117; baseDelays[1] = 1259;
+baseDelays[2] = 1409; baseDelays[3] = 1597;
+baseDelays[4] = 1777; baseDelays[5] = 1993;
+baseDelays[6] = 2213; baseDelays[7] = 2437;
+
+apDelays[0] = 479; apDelays[1] = 173; apDelays[2] = 97;
+apDelays[3] = 67; apDelays[4] = 37; apDelays[5] = 23;
+
+earlyDelays[0] = ceil(sr * 0.015); earlyDelays[1] = ceil(sr * 0.022);
+earlyDelays[2] = ceil(sr * 0.029); earlyDelays[3] = ceil(sr * 0.038);
+earlyDelays[4] = ceil(sr * 0.048); earlyDelays[5] = ceil(sr * 0.060);
+earlyDelays[6] = ceil(sr * 0.075); earlyDelays[7] = ceil(sr * 0.092);
+
+// ============================================
+// INIT GOERTZEL MODES
+// ============================================
+baseFreq = 75; spacing = 1.18;
+i = 0;
+while(i < numModes)(
+    freq = baseFreq * (spacing ^ i);
+    freq < 400 ? freq = 400;
+    modeFreqs[i] = freq;
+    w = twoPi * freq / sr;
+    modeCoeffs[i] = 2 * cos(w);
+    modeS1[i] = 0; modeS2[i] = 0;
+    modeGains[i] = 1.0 / (i + 1.2);
+    modePan[i] = (i / numModes) * twoPi;
+    i += 1;
 );
 
-function abs(x)(
-    x < 0 ? -x : x;
+// ============================================
+// INIT GOERTZEL BASS ANALYZERS
+// ============================================
+i = 0;
+while(i < numBassBins)(
+    w = twoPi * bassBinFreqs[i] / sr;
+    bassCoeffs[i] = 2 * cos(w);
+    bassS1[i] = 0; bassS2[i] = 0; bassMags[i] = 0; bassSmooth[i] = 0;
+    i += 1;
 );
 
-function max(x, y)(
-    x > y ? x : y;
-);
+// ============================================
+// INIT TONAL OSCILLATOR PHASES
+// ============================================
+i = 0;
+while(i < 8)(tonalPhases[i] = 0; i += 1;);
 
-function min(x, y)(
-    x < y ? x : y;
-);
-
-function clamp(x, lo, hi)(
-    x < lo ? lo : (x > hi ? hi : x);
-);
-
-// Lowpass filter
-function LowPass_Set(freq)(
-    w = (freq * 2 * $PI) / srate;
-    sinW = sin(w);
-    cosW = cos(w);
-    alpha = sinW / (2 * 0.707);
-    
-    this.b0 = (1 - cosW) / 2;
-    this.b1 = 1 - cosW;
-    this.b2 = this.b0;
-    this.a0 = 1 + alpha;
-    this.a1 = -2 * cosW;
-    this.a2 = 1 - alpha;
-    
-    this.b0 = this.b0 / this.a0;
-    this.b1 = this.b1 / this.a0;
-    this.b2 = this.b2 / this.a0;
-    this.a1 = -this.a1 / this.a0;
-    this.a2 = -this.a2 / this.a0;
-    
-    this.x1 = 0; this.x2 = 0;
-    this.y1 = 0; this.y2 = 0;
-);
-
-function LowPass_Process(sample)(
-    out = sample * this.b0 + this.x1 * this.b1 + this.x2 * this.b2 + this.y1 * this.a1 + this.y2 * this.a2;
-    this.y2 = this.y1;
-    this.y1 = out;
-    this.x2 = this.x1;
-    this.x1 = sample;
-    out;
-);
-
-// Highpass filter
-function HighPass_Set(freq)(
-    w = (freq * 2 * $PI) / srate;
-    sinW = sin(w);
-    cosW = cos(w);
-    alpha = sinW / (2 * 0.707);
-    
-    this.b0 = (1 + cosW) / 2;
-    this.b1 = -(1 + cosW);
-    this.b2 = this.b0;
-    this.a0 = 1 + alpha;
-    this.a1 = -2 * cosW;
-    this.a2 = 1 - alpha;
-    
-    this.b0 = this.b0 / this.a0;
-    this.b1 = this.b1 / this.a0;
-    this.b2 = this.b2 / this.a0;
-    this.a1 = -this.a1 / this.a0;
-    this.a2 = -this.a2 / this.a0;
-    
-    this.x1 = 0; this.x2 = 0;
-    this.y1 = 0; this.y2 = 0;
-);
-
-function HighPass_Process(sample)(
-    out = sample * this.b0 + this.x1 * this.b1 + this.x2 * this.b2 + this.y1 * this.a1 + this.y2 * this.a2;
-    this.y2 = this.y1;
-    this.y1 = out;
-    this.x2 = this.x1;
-    this.x1 = sample;
-    out;
-);
-
-// Bandpass filter
-function BandPass_Set(lowFreq, highFreq)(
-    this.lowAngle = (lowFreq * $PI) / srate;
-    this.highAngle = (highFreq * $PI) / srate;
-    this.x1 = 0; this.x2 = 0; this.x3 = 0;
-    this.y1 = 0; this.y2 = 0; this.y3 = 0;
-);
-
-function BandPass_Process(sample)(
-    this.x1 = this.x1 + this.lowAngle * (sample - this.x1);
-    this.x2 = this.x2 + this.lowAngle * (this.x1 - this.x2);
-    this.x3 = this.x3 + this.lowAngle * (this.x2 - this.x3);
-    
-    highpass = sample - this.x3;
-    
-    this.y1 = this.y1 + this.highAngle * (highpass - this.y1);
-    this.y2 = this.y2 + this.highAngle * (this.y1 - this.y2);
-    this.y3 = this.y3 + this.highAngle * (this.y2 - this.y3);
-    
-    this.out = this.y3;
-);
-
-function BandPass_Get()(
-    this.out;
-);
-
-// Envelope follower
-function Envelope_Set(attackMs, releaseMs)(
-    this.attack = exp(-1 / (max(attackMs, 1) * 0.001 * srate));
-    this.release = exp(-1 / (max(releaseMs, 10) * 0.001 * srate));
-    this.env = 0;
-);
-
-function Envelope_Process(input)(
-    input = abs(input);
-    input > this.env ? (
-        this.env = input + this.attack * (this.env - input);
-    ) : (
-        this.env = input + this.release * (this.env - input);
-    );
-    this.env;
-);
-
-// Transient detector
-function Transient_Set()(
-    this.attack = exp(-1 / (0.5 * 0.001 * srate));
-    this.release = exp(-1 / (10 * 0.001 * srate));
-    this.env = 0;
-);
-
-function Transient_Process(input)(
-    input = abs(input);
-    input > this.env ? (
-        this.env = input + this.attack * (this.env - input);
-    ) : (
-        this.env = input + this.release * (this.env - input);
-    );
-    this.env;
-);
-
-// Saturator
-function Saturate(input, drive)(
-    driveAmt = 1 + drive * 3;
-    input > 0 ? (
-        1 - exp(-input * driveAmt);
-    ) : (
-        -(1 - exp(input * driveAmt));
-    );
-);
-
-// Harmonics
-function AddHarmonics(input, amount)(
-    driveAmt = 1 + amount * 2;
-    harmonics = input * input * driveAmt * 0.5;
-    harmonics = harmonics > 1 ? 1 : (harmonics < -1 ? -1 : harmonics);
-    input + harmonics * amount;
-);
-
-// Main bass processor
-function BassEnhancer_Init()(
-    this.subL.LowPass_Set(60);
-    this.subR.LowPass_Set(60);
-    this.subHpL.LowPass_Set(20);
-    this.subHpR.LowPass_Set(20);
-    
-    this.punchL.BandPass_Set(60, 120);
-    this.punchR.BandPass_Set(60, 120);
-    
-    this.kickL.BandPass_Set(120, 200);
-    this.kickR.BandPass_Set(120, 200);
-    
-    this.monoL.LowPass_Set(80);
-    this.monoR.LowPass_Set(80);
-    
-    this.transL.Transient_Set();
-    this.transR.Transient_Set();
-    
-    this.harmHpL.HighPass_Set(40);
-    this.harmHpR.HighPass_Set(40);
-    
-    this.envSub.Envelope_Set(2, 400);
-    this.envPunch.Envelope_Set(1, 200);
-    this.envKick.Envelope_Set(3, 150);
-    
-    this.outL = 0;
-    this.outR = 0;
-);
-
-function BassEnhancer_SetBoosts(sub, punch, kick)(
-    this.subBoost = db2lin(sub);
-    this.punchBoost = db2lin(punch);
-    this.kickBoost = db2lin(kick);
-);
-
-function BassEnhancer_SetSquash(subSq, punchSq, kickSq)(
-    this.subSquash = subSq * 0.01;
-    this.punchSquash = punchSq * 0.01;
-    this.kickSquash = kickSq * 0.01;
-);
-
-function BassEnhancer_SetDrive(drive)(
-    this.drive = drive * 0.01;
-);
-
-function BassEnhancer_SetTricks(harm, mono, trans)(
-    this.harmonics = harm * 0.01;
-    this.monoFreq = mono;
-    this.transientAmt = trans * 0.01;
-);
-
-function BassEnhancer_Process(left, right)(
-    subRawL = this.subL.LowPass_Process(left);
-    subRawR = this.subR.LowPass_Process(right);
-    subHpL = this.subHpL.LowPass_Process(left);
-    subHpR = this.subHpR.LowPass_Process(right);
-    subL = subRawL - subHpL;
-    subR = subRawR - subHpR;
-    
-    this.punchL.BandPass_Process(left);
-    this.punchR.BandPass_Process(right);
-    punchL = this.punchL.BandPass_Get();
-    punchR = this.punchR.BandPass_Get();
-    
-    this.kickL.BandPass_Process(left);
-    this.kickR.BandPass_Process(right);
-    kickL = this.kickL.BandPass_Get();
-    kickR = this.kickR.BandPass_Get();
-    
-    transL = this.transL.Transient_Process(left);
-    transR = this.transR.Transient_Process(right);
-    transEmphasisL = 1 + (transL * this.transientAmt * 2);
-    transEmphasisR = 1 + (transR * this.transientAmt * 2);
-    
-    this.monoFreq > 0 ? (
-        monoSub = (subL + subR) * 0.5;
-        subL = subL * 0.3 + monoSub * 0.7;
-        subR = subR * 0.3 + monoSub * 0.7;
-    );
-    
-    eSub = this.envSub.Envelope_Process(subL + subR);
-    ePunch = this.envPunch.Envelope_Process(punchL + punchR);
-    eKick = this.envKick.Envelope_Process(kickL + kickR);
-    
-    subL = subL * this.subBoost * transEmphasisL;
-    subR = subR * this.subBoost * transEmphasisR;
-    punchL = punchL * this.punchBoost * transEmphasisL;
-    punchR = punchR * this.punchBoost * transEmphasisR;
-    kickL = kickL * this.kickBoost * transEmphasisL;
-    kickR = kickR * this.kickBoost * transEmphasisR;
-    
-    this.drive > 0 ? (
-        subL = Saturate(subL, this.drive);
-        subR = Saturate(subR, this.drive);
-        punchL = Saturate(punchL, this.drive);
-        punchR = Saturate(punchR, this.drive);
-        kickL = Saturate(kickL, this.drive);
-        kickR = Saturate(kickR, this.drive);
-    );
-    
-    this.harmonics > 0 ? (
-        harmL = this.harmHpL.HighPass_Process(punchL + kickL);
-        harmR = this.harmHpR.HighPass_Process(punchR + kickR);
-        punchL = AddHarmonics(punchL, this.harmonics) + harmL * this.harmonics * 0.3;
-        punchR = AddHarmonics(punchR, this.harmonics) + harmR * this.harmonics * 0.3;
-    );
-    
-    this.subSquash > 0 ? (
-        thresh = 0.5;
-        eSub > thresh ? (
-            over = eSub / thresh;
-            ratio = 1 + this.subSquash * 3;
-            gr = over^(1 - ratio);
-            gr = 1 - (1 - gr) * this.subSquash * 0.5;
-            gr = clamp(gr, 0.1, 2);
-            subL = subL * gr;
-            subR = subR * gr;
-        );
-    );
-    
-    this.punchSquash > 0 ? (
-        ePunch > thresh ? (
-            over = ePunch / thresh;
-            ratio = 1 + this.punchSquash * 2;
-            gr = over^(1 - ratio);
-            gr = 1 - (1 - gr) * this.punchSquash * 0.7;
-            gr = clamp(gr, 0.1, 2);
-            punchL = punchL * gr;
-            punchR = punchR * gr;
-        );
-    );
-    
-    this.kickSquash > 0 ? (
-        eKick > thresh ? (
-            over = eKick / thresh;
-            ratio = 1 + this.kickSquash * 2;
-            gr = over^(1 - ratio);
-            gr = 1 - (1 - gr) * this.kickSquash * 0.6;
-            gr = clamp(gr, 0.1, 2);
-            kickL = kickL * gr;
-            kickR = kickR * gr;
-        );
-    );
-    
-    bassL = subL + punchL + kickL;
-    bassR = subR + punchR + kickR;
-    
-    this.outL = left + bassL;
-    this.outR = right + bassR;
-);
-
-function BassEnhancer_GetLeft()(
-    this.outL;
-);
-
-function BassEnhancer_GetRight()(
-    this.outR;
-);
-
-// Initialize
-bass.BassEnhancer_Init();
-bass.BassEnhancer_SetBoosts(sub_boost, punch_boost, kick_boost);
-bass.BassEnhancer_SetSquash(sub_squash, punch_squash, kick_squash);
-bass.BassEnhancer_SetDrive(bass_drive);
-bass.BassEnhancer_SetTricks(harmonics, mono_bass, transient_sharp);
+// ============================================
+// CLEAR MEMORY
+// ============================================
+memset(delayBase, 0, maxDelay * 2 + 50);
+memset(combBase, 0, maxDelay * 16 + 100);
+memset(heightBase, 0, 5000 * 2 + 20);
+memset(apBase, 0, 8000 * 12 + 200);
+memset(earlyBase, 0, 5000 * 2 + 20);
+memset(hrtfBase, 0, 2000 * 2 + 20);
+memset(modeBase, 0, numModes * 6 + 50);
 
 @sample
-// Increment block counter
-block_counter = block_counter + 1;
+// ============================================
+// INPUT
+// ============================================
+inL = spl0;
+inR = spl1;
 
-// Check sliders every 4096 samples (~85ms @ 48kHz)
-block_counter >= 4096 ? (
-    block_counter = 0;
+// ============================================
+// STEP 1: SPLIT BASS FROM HIGHS
+// ============================================
+hpTmpL = inL - hp400L;
+hp400L = inL * hpAlpha400 + hp400L * (1 - hpAlpha400);
+hpTmpL2 = hpTmpL - lp400L;
+lp400L = hpTmpL * hpAlpha400 + lp400L * (1 - hpAlpha400);
+
+hpTmpR = inR - hp400R;
+hp400R = inR * hpAlpha400 + hp400R * (1 - hpAlpha400);
+hpTmpR2 = hpTmpR - lp400R;
+lp400R = hpTmpR * hpAlpha400 + lp400R * (1 - hpAlpha400);
+
+highsL = hpTmpL2;
+highsR = hpTmpR2;
+bassInL = inL - highsL;
+bassInR = inR - highsR;
+
+// ============================================
+// STEP 2: GOERTZEL BASS ANALYSIS (EVERY SAMPLE)
+// ============================================
+monoBass = (bassInL + bassInR) * 0.5;
+
+s0 = monoBass + bassCoeffs[0] * bassS1[0] - bassS2[0];
+bassS2[0] = bassS1[0]; bassS1[0] = s0;
+bassSmooth[0] = bassSmooth[0] * 0.99 + abs(s0) * 0.01;
+
+s0 = monoBass + bassCoeffs[1] * bassS1[1] - bassS2[1];
+bassS2[1] = bassS1[1]; bassS1[1] = s0;
+bassSmooth[1] = bassSmooth[1] * 0.99 + abs(s0) * 0.01;
+
+s0 = monoBass + bassCoeffs[2] * bassS1[2] - bassS2[2];
+bassS2[2] = bassS1[2]; bassS1[2] = s0;
+bassSmooth[2] = bassSmooth[2] * 0.99 + abs(s0) * 0.01;
+
+s0 = monoBass + bassCoeffs[3] * bassS1[3] - bassS2[3];
+bassS2[3] = bassS1[3]; bassS1[3] = s0;
+bassSmooth[3] = bassSmooth[3] * 0.99 + abs(s0) * 0.01;
+
+bassMags[0] = bassSmooth[0]; bassMags[1] = bassSmooth[1];
+bassMags[2] = bassSmooth[2]; bassMags[3] = bassSmooth[3];
+
+// ============================================
+// STEP 3: ADAPTIVE BASS PARAMETERS (EVERY SAMPLE)
+// ============================================
+subEnergy = bassMags[0] * 0.6 + bassMags[1] * 0.4;
+subDb = lin2db(subEnergy + 0.0001);
+lowEnergy = bassMags[2] * 0.6 + bassMags[3] * 0.4;
+lowDb = lin2db(lowEnergy + 0.00001);
+
+dominantMag = bassMags[0]; dominantIdx = 0;
+bassMags[1] > dominantMag ? (dominantMag = bassMags[1]; dominantIdx = 1;);
+bassMags[2] > dominantMag ? (dominantMag = bassMags[2]; dominantIdx = 2;);
+bassMags[3] > dominantMag ? (dominantMag = bassMags[3]; dominantIdx = 3;);
+
+subFreqTarget = bassBinFreqs[dominantIdx];
+subFreqTarget < 30 ? subFreqTarget = 30;
+subFreqTarget > 80 ? subFreqTarget = 80;
+subFreq = subFreq + (subFreqTarget - subFreq) * (bass_response / 200);
+
+freqStability = abs(subFreq - subFreqTarget) < 5 ? 1 : 0;
+subQ = subQ + (0.8 + freqStability * 0.7 - subQ) * 0.05;
+subQ = clamp(subQ, 0.5, 2.0);
+
+subSens = sub_sensitivity / 100;
+subTarget = -24;
+subNeed = (subTarget - subDb) * subSens;
+subGainTarget = clamp(subNeed, -3, max_boost);
+subGain = subGain + (subGainTarget - subGain) * (bass_response / 100);
+
+lowFreqTarget = subFreq < 50 ? 140 : (subFreq > 65 ? 100 : 120);
+lowFreq = lowFreq + (lowFreqTarget - lowFreq) * (bass_response / 200);
+lowQ = 0.8 + (target_thump / 100) * 0.5;
+lowQ = clamp(lowQ, 0.7, 1.5);
+
+lowSens = low_sensitivity / 100;
+lowTarget = -21;
+lowNeed = (lowTarget - lowDb) * lowSens;
+lowGainTarget = clamp(lowNeed, 0, max_boost - 2);
+lowGain = lowGain + (lowGainTarget - lowGain) * (bass_response / 100);
+
+// ============================================
+// STEP 4: UPDATE BASS COEFFICIENTS (EVERY SAMPLE)
+// ============================================
+A_sub = 10^(subGain/40);
+w0_sub = twoPi * subFreq / sr;
+cosw0_sub = cos(w0_sub);
+sinw0_sub = sin(w0_sub);
+sqrtA_sub = sqrt(A_sub);
+alpha_sub = sinw0_sub / 2 * sqrt((A_sub + 1/A_sub) * (1/subS - 1) + 2);
+
+a0_sub = (A_sub + 1) + (A_sub - 1)*cosw0_sub + 2*sqrtA_sub*alpha_sub;
+subB0 = A_sub * ((A_sub + 1) - (A_sub - 1)*cosw0_sub + 2*sqrtA_sub*alpha_sub) / a0_sub;
+subB1 = 2*A_sub * ((A_sub - 1) - (A_sub + 1)*cosw0_sub) / a0_sub;
+subB2 = A_sub * ((A_sub + 1) - (A_sub - 1)*cosw0_sub - 2*sqrtA_sub*alpha_sub) / a0_sub;
+subA1 = -2 * ((A_sub - 1) + (A_sub + 1)*cosw0_sub) / a0_sub;
+subA2 = ((A_sub + 1) + (A_sub - 1)*cosw0_sub - 2*sqrtA_sub*alpha_sub) / a0_sub;
+
+A_low = 10^(lowGain/40);
+w0_low = twoPi * lowFreq / sr;
+cosw0_low = cos(w0_low);
+sinw0_low = sin(w0_low);
+alpha_low = sinw0_low / (2 * lowQ);
+
+a0_low = 1 + alpha_low / A_low;
+lowB0 = (1 + alpha_low * A_low) / a0_low;
+lowB1 = (-2 * cosw0_low) / a0_low;
+lowB2 = (1 - alpha_low * A_low) / a0_low;
+lowA1 = (-2 * cosw0_low) / a0_low;
+lowA2 = (1 - alpha_low / A_low) / a0_low;
+
+// ============================================
+// STEP 5: PROCESS BASS TO MONO ANCHOR
+// ============================================
+subOutL = subB0 * bassInL + subB1 * subX1L + subB2 * subX2L - subA1 * subY1L - subA2 * subY2L;
+subX2L = subX1L; subX1L = bassInL;
+subY2L = subY1L; subY1L = subOutL;
+
+subOutR = subB0 * bassInR + subB1 * subX1R + subB2 * subX2R - subA1 * subY1R - subA2 * subY2R;
+subX2R = subX1R; subX1R = bassInR;
+subY2R = subY1R; subY1R = subOutR;
+
+lowInL = subOutL; lowInR = subOutR;
+
+lowOutL = lowB0 * lowInL + lowB1 * lowX1L + lowB2 * lowX2L - lowA1 * lowY1L - lowA2 * lowY2L;
+lowX2L = lowX1L; lowX1L = lowInL;
+lowY2L = lowY1L; lowY1L = lowOutL;
+
+lowOutR = lowB0 * lowInR + lowB1 * lowX1R + lowB2 * lowX2R - lowA1 * lowY1R - lowA2 * lowY2R;
+lowX2R = lowX1R; lowX1R = lowInR;
+lowY2R = lowY1R; lowY1R = lowOutR;
+
+satDrive = 1 + (saturation / 100);
+tmpL = lowOutL * satDrive; tmpR = lowOutR * satDrive;
+abs(tmpL) > 0.8 ? (signL = tmpL > 0 ? 1 : -1; tmpL = signL * (0.8 + (abs(tmpL) - 0.8) / (1 + (abs(tmpL) - 0.8) * 0.5)););
+abs(tmpR) > 0.8 ? (signR = tmpR > 0 ? 1 : -1; tmpR = signR * (0.8 + (abs(tmpR) - 0.8) / (1 + (abs(tmpR) - 0.8) * 0.5)););
+
+bassMono = (tmpL + tmpR) * 0.5;
+
+// ============================================
+// STEP 6: TIME-BLOCK PARAMETER UPDATES (10ms)
+// ============================================
+sampleCounter += 1;
+sampleCounter >= blockSizeSamples ? (
+    sampleCounter = 0;
     
-    // Check if genre changed
-    genre != current_genre ? (
-        current_genre = genre;
+    // Spatial smoothing
+    targetSize = space_size / 100;
+    cachedSmoothSize = cachedSmoothSize + (targetSize - cachedSmoothSize) * 0.3;
+    cachedSmoothDecay = cachedSmoothDecay + ((decay / 100) - cachedSmoothDecay) * 0.3;
+    
+    // Artist movement (circular)
+    artistAngle += movement_speed * twoPi * blockSizeMs / 1000;
+    artistAngle >= twoPi ? artistAngle -= twoPi;
+    
+    heightPhase += movement_speed * 0.7 * twoPi * blockSizeMs / 1000;
+    depthPhase += movement_speed * 0.5 * twoPi * blockSizeMs / 1000;
+    
+    // 9D position
+    moveAmt = movement / 100;
+    cachedArtistX = cos(artistAngle) * moveAmt;
+    cachedArtistY = sin(heightPhase) * (height / 100) * 0.5;
+    cachedArtistZ = sin(depthPhase) * (depth / 100) * 0.3 + 0.7;
+    
+    // Derived spatial parameters
+    cachedDistAtten = 1 / (1 + cachedArtistZ * 0.5);
+    cachedDepthDelay = ceil(cachedArtistZ * 50 * sr / 1000);
+    cachedDepthDelay = clamp(cachedDepthDelay, 1, maxDelay - 1);
+    cachedHeightAlpha = clamp(0.5 + cachedArtistY * 0.3, 0.1, 0.9);
+    
+    // Modulation
+    cachedMod1 = cachedArtistX * 20 * cachedSmoothSize;
+    cachedMod2 = cachedArtistY * 15 * cachedSmoothSize;
+    cachedWidthOffset = (width / 100 - 1) * 20 * (1 + cachedArtistX * 0.3);
+    
+    // Mix parameters
+    cachedWetAmt = mix / 100;
+    cachedFocusAmt = focus / 100;
+    cachedEnvAmt = envelopment / 100;
+    cachedModalMix = modal_color / 100;
+    
+    // ============================================
+    // BINAURAL TONAL GENERATION (10ms block)
+    // ============================================
+    tonalInt = binaural_intensity / 100;
+    tonalMod = binaural_modulation / 100;
+    
+    binaural_preset == 1 ? (  // ENERGETIC
+        // Beta + Gamma waves for alertness
+        // 15Hz left, 18Hz right = 3Hz binaural beat (alert)
+        // 40Hz Gamma for cognitive enhancement
         
-        // Apply genre preset
-        genre == 1 ? ( // EDM/Dubstep
-            sub_boost = 22; punch_boost = 10; kick_boost = 6;
-            sub_squash = 35; punch_squash = 25; kick_squash = 20;
-            bass_drive = 45; harmonics = 40; mono_bass = 100; transient_sharp = 50;
-        ) : genre == 2 ? ( // Hip-Hop
-            sub_boost = 18; punch_boost = 14; kick_boost = 10;
-            sub_squash = 30; punch_squash = 35; kick_squash = 25;
-            bass_drive = 40; harmonics = 55; mono_bass = 80; transient_sharp = 60;
-        ) : genre == 3 ? ( // Rock/Metal
-            sub_boost = 8; punch_boost = 16; kick_boost = 14;
-            sub_squash = 20; punch_squash = 30; kick_squash = 35;
-            bass_drive = 50; harmonics = 45; mono_bass = 60; transient_sharp = 70;
-        ) : genre == 4 ? ( // Pop
-            sub_boost = 12; punch_boost = 12; kick_boost = 10;
-            sub_squash = 25; punch_squash = 25; kick_squash = 25;
-            bass_drive = 30; harmonics = 60; mono_bass = 70; transient_sharp = 40;
-        ) : genre == 5 ? ( // Techno/House
-            sub_boost = 20; punch_boost = 12; kick_boost = 8;
-            sub_squash = 40; punch_squash = 35; kick_squash = 30;
-            bass_drive = 45; harmonics = 35; mono_bass = 90; transient_sharp = 65;
-        ) : genre == 6 ? ( // Jazz/Acoustic
-            sub_boost = 6; punch_boost = 8; kick_boost = 6;
-            sub_squash = 15; punch_squash = 15; kick_squash = 15;
-            bass_drive = 20; harmonics = 30; mono_bass = 50; transient_sharp = 25;
-        ) : genre == 7 ? ( // Classical
-            sub_boost = 4; punch_boost = 6; kick_boost = 4;
-            sub_squash = 10; punch_squash = 10; kick_squash = 10;
-            bass_drive = 15; harmonics = 20; mono_bass = 40; transient_sharp = 20;
-        ) : genre == 8 ? ( // Country
-            sub_boost = 6; punch_boost = 10; kick_boost = 12;
-            sub_squash = 20; punch_squash = 25; kick_squash = 30;
-            bass_drive = 35; harmonics = 35; mono_bass = 60; transient_sharp = 45;
-        ) : genre == 9 ? ( // Reggae/Dub
-            sub_boost = 24; punch_boost = 8; kick_boost = 4;
-            sub_squash = 30; punch_squash = 20; kick_squash = 15;
-            bass_drive = 40; harmonics = 25; mono_bass = 120; transient_sharp = 30;
-        ) : genre == 10 ? ( // Drum & Bass
-            sub_boost = 18; punch_boost = 16; kick_boost = 10;
-            sub_squash = 45; punch_squash = 40; kick_squash = 35;
-            bass_drive = 55; harmonics = 50; mono_bass = 100; transient_sharp = 80;
-        ) : genre == 11 ? ( // Trap
-            sub_boost = 20; punch_boost = 12; kick_boost = 8;
-            sub_squash = 35; punch_squash = 30; kick_squash = 25;
-            bass_drive = 50; harmonics = 60; mono_bass = 90; transient_sharp = 75;
-        ) : genre == 12 ? ( // Lo-Fi
-            sub_boost = 14; punch_boost = 10; kick_boost = 6;
-            sub_squash = 20; punch_squash = 20; kick_squash = 20;
-            bass_drive = 60; harmonics = 70; mono_bass = 100; transient_sharp = 15;
-        ) : genre == 13 ? ( // R&B/Soul
-            sub_boost = 16; punch_boost = 12; kick_boost = 8;
-            sub_squash = 25; punch_squash = 25; kick_squash = 20;
-            bass_drive = 35; harmonics = 50; mono_bass = 80; transient_sharp = 35;
-        ) : genre == 14 ? ( // Funk
-            sub_boost = 10; punch_boost = 16; kick_boost = 10;
-            sub_squash = 22; punch_squash = 28; kick_squash = 22;
-            bass_drive = 45; harmonics = 55; mono_bass = 70; transient_sharp = 55;
-        ) : genre == 15 ? ( // Disco
-            sub_boost = 12; punch_boost = 14; kick_boost = 10;
-            sub_squash = 28; punch_squash = 30; kick_squash = 25;
-            bass_drive = 40; harmonics = 45; mono_bass = 75; transient_sharp = 50;
-        ) : genre == 16 ? ( // Metalcore
-            sub_boost = 6; punch_boost = 14; kick_boost = 16;
-            sub_squash = 15; punch_squash = 35; kick_squash = 40;
-            bass_drive = 55; harmonics = 40; mono_bass = 50; transient_sharp = 85;
-        );
+        w0 = twoPi * 15 * blockSizeMs / 1000;
+        tonalPhases[0] += w0;
+        tonalPhases[0] >= twoPi ? tonalPhases[0] -= twoPi;
+        w0 = twoPi * 18 * blockSizeMs / 1000;
+        tonalPhases[1] += w0;
+        tonalPhases[1] >= twoPi ? tonalPhases[1] -= twoPi;
         
-        // Update processor with new values
-        bass.BassEnhancer_SetBoosts(sub_boost, punch_boost, kick_boost);
-        bass.BassEnhancer_SetSquash(sub_squash, punch_squash, kick_squash);
-        bass.BassEnhancer_SetDrive(bass_drive);
-        bass.BassEnhancer_SetTricks(harmonics, mono_bass, transient_sharp);
+        w0 = twoPi * 40 * blockSizeMs / 1000;
+        tonalPhases[2] += w0;
+        tonalPhases[2] >= twoPi ? tonalPhases[2] -= twoPi;
+        w0 = twoPi * 40.5 * blockSizeMs / 1000;
+        tonalPhases[3] += w0;
+        tonalPhases[3] >= twoPi ? tonalPhases[3] -= twoPi;
+        
+        // Modulation for movement
+        modTone = 1 + sin(tonalPhases[0] * 0.1) * tonalMod * 0.2;
+        
+        cachedTonalL = (sin(tonalPhases[0]) * 0.6 + sin(tonalPhases[2]) * 0.4) * tonalInt * modTone;
+        cachedTonalR = (sin(tonalPhases[1]) * 0.6 + sin(tonalPhases[3]) * 0.4) * tonalInt * modTone;
+        
+    ) : binaural_preset == 2 ? (  // HAZY
+        // Theta + Alpha waves for relaxation
+        // 6Hz left, 10Hz right = 4Hz diff (dreamy)
+        // 4.5Hz deep theta for "slumped" feeling
+        
+        w0 = twoPi * 6 * blockSizeMs / 1000;
+        tonalPhases[4] += w0;
+        tonalPhases[4] >= twoPi ? tonalPhases[4] -= twoPi;
+        w0 = twoPi * 10 * blockSizeMs / 1000;
+        tonalPhases[5] += w0;
+        tonalPhases[5] >= twoPi ? tonalPhases[5] -= twoPi;
+        
+        w0 = twoPi * 4.5 * blockSizeMs / 1000;
+        tonalPhases[6] += w0;
+        tonalPhases[6] >= twoPi ? tonalPhases[6] -= twoPi;
+        w0 = twoPi * 6.5 * blockSizeMs / 1000;
+        tonalPhases[7] += w0;
+        tonalPhases[7] >= twoPi ? tonalPhases[7] -= twoPi;
+        
+        // Slower modulation for haziness
+        modTone = 1 + sin(tonalPhases[4] * 0.05) * tonalMod * 0.3;
+        
+        // Softer waveform (blend of sines for warmth)
+        cachedTonalL = (sin(tonalPhases[4]) * 0.5 + sin(tonalPhases[6]) * 0.5) * tonalInt * modTone * 0.8;
+        cachedTonalR = (sin(tonalPhases[5]) * 0.5 + sin(tonalPhases[7]) * 0.5) * tonalInt * modTone * 0.8;
+        
+    ) : (  // OFF
+        cachedTonalL = 0;
+        cachedTonalR = 0;
     );
 );
 
-// Process audio every sample
-bass.BassEnhancer_Process(spl0, spl1);
-spl0 = bass.BassEnhancer_GetLeft() * db2lin(master_gain);
-spl1 = bass.BassEnhancer_GetRight() * db2lin(master_gain);
+// ============================================
+// STEP 7: DEPTH PRE-DELAY (per-sample with cached params)
+// ============================================
+preDelayL[preDelayPos] = highsL;
+preDelayR[preDelayPos] = highsR;
+
+readPos = preDelayPos - cachedDepthDelay;
+readPos < 0 ? readPos += maxDelay;
+depthL = preDelayL[readPos] * cachedDistAtten;
+depthR = preDelayR[readPos] * cachedDistAtten;
+
+preDelayPos += 1;
+preDelayPos >= maxDelay ? preDelayPos = 0;
+
+// ============================================
+// STEP 8: HEIGHT DIMENSION (cached alpha)
+// ============================================
+heightL[heightPos] = depthL;
+heightR[heightPos] = depthR;
+
+readPos = heightPos - ceil(abs(cachedArtistY) * 30 * sr / 1000);
+readPos < 0 ? readPos += 5000;
+
+vertL = heightL[readPos] * cachedHeightAlpha;
+vertR = heightR[readPos] * cachedHeightAlpha;
+
+heightPos += 1;
+heightPos >= 5000 ? heightPos = 0;
+
+// ============================================
+// STEP 9: COMB REVERB (cached mod/width)
+// ============================================
+d1 = ceil((baseDelays[0] + cachedMod1) * cachedSmoothSize);
+d2 = ceil((baseDelays[1] + cachedMod2) * cachedSmoothSize);
+d3 = ceil((baseDelays[2] - cachedMod1) * cachedSmoothSize);
+d4 = ceil((baseDelays[3] - cachedMod2) * cachedSmoothSize);
+d5 = ceil((baseDelays[4] + cachedMod1 * 0.5) * cachedSmoothSize);
+d6 = ceil((baseDelays[5] + cachedMod2 * 0.5) * cachedSmoothSize);
+d7 = ceil((baseDelays[6] - cachedMod1 * 0.5) * cachedSmoothSize);
+d8 = ceil((baseDelays[7] - cachedMod2 * 0.5) * cachedSmoothSize);
+
+d1 = clamp(d1, 10, maxDelay - 1); d2 = clamp(d2, 10, maxDelay - 1);
+d3 = clamp(d3, 10, maxDelay - 1); d4 = clamp(d4, 10, maxDelay - 1);
+d5 = clamp(d5, 10, maxDelay - 1); d6 = clamp(d6, 10, maxDelay - 1);
+d7 = clamp(d7, 10, maxDelay - 1); d8 = clamp(d8, 10, maxDelay - 1);
+
+dampF = 1 - (45 / 400);
+
+// Comb 1
+readPos = combPos1 - d1; readPos < 0 ? readPos += maxDelay;
+outL = comb1L[readPos] * dampF;
+readPos = combPos1 - (d1 + cachedWidthOffset); readPos < 0 ? readPos += maxDelay;
+outR = comb1R[readPos] * dampF;
+comb1L[combPos1] = vertL + outL * cachedSmoothDecay;
+comb1R[combPos1] = vertR + outR * cachedSmoothDecay;
+combPos1 += 1; combPos1 >= maxDelay ? combPos1 = 0;
+sumL = outL; sumR = outR;
+
+// Comb 2
+readPos = combPos2 - d2; readPos < 0 ? readPos += maxDelay;
+outL = comb2L[readPos] * dampF;
+readPos = combPos2 - (d2 - cachedWidthOffset); readPos < 0 ? readPos += maxDelay;
+outR = comb2R[readPos] * dampF;
+comb2L[combPos2] = vertL + outL * cachedSmoothDecay;
+comb2R[combPos2] = vertR + outR * cachedSmoothDecay;
+combPos2 += 1; combPos2 >= maxDelay ? combPos2 = 0;
+sumL += outL; sumR += outR;
+
+// Comb 3
+readPos = combPos3 - d3; readPos < 0 ? readPos += maxDelay;
+outL = comb3L[readPos] * dampF;
+readPos = combPos3 - (d3 + cachedWidthOffset * 0.7); readPos < 0 ? readPos += maxDelay;
+outR = comb3R[readPos] * dampF;
+comb3L[combPos3] = vertL + outL * cachedSmoothDecay;
+comb3R[combPos3] = vertR + outR * cachedSmoothDecay;
+combPos3 += 1; combPos3 >= maxDelay ? combPos3 = 0;
+sumL += outL; sumR += outR;
+
+// Comb 4
+readPos = combPos4 - d4; readPos < 0 ? readPos += maxDelay;
+outL = comb4L[readPos] * dampF;
+readPos = combPos4 - (d4 - cachedWidthOffset * 0.7); readPos < 0 ? readPos += maxDelay;
+outR = comb4R[readPos] * dampF;
+comb4L[combPos4] = vertL + outL * cachedSmoothDecay;
+comb4R[combPos4] = vertR + outR * cachedSmoothDecay;
+combPos4 += 1; combPos4 >= maxDelay ? combPos4 = 0;
+sumL += outL; sumR += outR;
+
+// Comb 5
+readPos = combPos5 - d5; readPos < 0 ? readPos += maxDelay;
+outL = comb5L[readPos] * dampF;
+readPos = combPos5 - (d5 + cachedWidthOffset * 0.5); readPos < 0 ? readPos += maxDelay;
+outR = comb5R[readPos] * dampF;
+comb5L[combPos5] = vertL + outL * cachedSmoothDecay;
+comb5R[combPos5] = vertR + outR * cachedSmoothDecay;
+combPos5 += 1; combPos5 >= maxDelay ? combPos5 = 0;
+sumL += outL; sumR += outR;
+
+// Comb 6
+readPos = combPos6 - d6; readPos < 0 ? readPos += maxDelay;
+outL = comb6L[readPos] * dampF;
+readPos = combPos6 - (d6 - cachedWidthOffset * 0.5); readPos < 0 ? readPos += maxDelay;
+outR = comb6R[readPos] * dampF;
+comb6L[combPos6] = vertL + outL * cachedSmoothDecay;
+comb6R[combPos6] = vertR + outR * cachedSmoothDecay;
+combPos6 += 1; combPos6 >= maxDelay ? combPos6 = 0;
+sumL += outL; sumR += outR;
+
+// Comb 7
+readPos = combPos7 - d7; readPos < 0 ? readPos += maxDelay;
+outL = comb7L[readPos] * dampF;
+readPos = combPos7 - (d7 + cachedWidthOffset * 0.3); readPos < 0 ? readPos += maxDelay;
+outR = comb7R[readPos] * dampF;
+comb7L[combPos7] = vertL + outL * cachedSmoothDecay;
+comb7R[combPos7] = vertR + outR * cachedSmoothDecay;
+combPos7 += 1; combPos7 >= maxDelay ? combPos7 = 0;
+sumL += outL; sumR += outR;
+
+// Comb 8
+readPos = combPos8 - d8; readPos < 0 ? readPos += maxDelay;
+outL = comb8L[readPos] * dampF;
+readPos = combPos8 - (d8 - cachedWidthOffset * 0.3); readPos < 0 ? readPos += maxDelay;
+outR = comb8R[readPos] * dampF;
+comb8L[combPos8] = vertL + outL * cachedSmoothDecay;
+comb8R[combPos8] = vertR + outR * cachedSmoothDecay;
+combPos8 += 1; combPos8 >= maxDelay ? combPos8 = 0;
+sumL += outL; sumR += outR;
+
+sumL *= 0.125; sumR *= 0.125;
+
+// ============================================
+// STEP 10: GOERTZEL MODAL (cached artist position)
+// ============================================
+monoSum = (sumL + sumR) * 0.5;
+goertzelOutL = 0; goertzelOutR = 0;
+
+modalMove = modal_movement / 100;
+modalSpr = modal_spread / 100;
+
+abs(monoSum) > 0.00001 ? (
+    i = 0;
+    while(i < numModes)(
+        modFreq = modeFreqs[i] * (1 + sin(artistAngle + modePan[i]) * modalMove * 0.02);
+        w = twoPi * modFreq / sr;
+        coeff = 2 * cos(w);
+        
+        s0 = monoSum + coeff * modeS1[i] - modeS2[i];
+        modeS2[i] = modeS1[i];
+        modeS1[i] = s0 * 0.998;
+        
+        real = modeS1[i] - modeS2[i] * coeff * 0.5;
+        imag = modeS2[i] * sin(w);
+        mag = sqrt(real * real + imag * imag);
+        
+        modeX = cos(modePan[i] + artistAngle * modalSpr);
+        modeY = sin(modePan[i] + artistAngle * modalSpr);
+        
+        heightPan = modeY * (height / 100);
+        stereoPan = modeX * (width / 100);
+        
+        panL = 1 + stereoPan + heightPan;
+        panR = 1 - stereoPan + heightPan;
+        
+        i > 4 ? mag *= 0.7;
+        
+        goertzelOutL += mag * modeGains[i] * panL;
+        goertzelOutR += mag * modeGains[i] * panR;
+        
+        i += 1;
+    );
+    goertzelOutL *= 0.02; goertzelOutR *= 0.02;
+);
+
+modalL = sumL + goertzelOutL * cachedModalMix;
+modalR = sumR + goertzelOutR * cachedModalMix;
+
+// ============================================
+// STEP 11: ALL-PASS DIFFUSION
+// ============================================
+apInL = modalL; apInR = modalR;
+
+readPos = apPos1 - apDelays[0]; readPos < 0 ? readPos += 8000;
+delayed = ap1L[readPos];
+apOutL = delayed - 0.6 * apInL;
+ap1L[apPos1] = apInL + 0.6 * delayed;
+delayed = ap1R[readPos];
+apOutR = delayed - 0.6 * apInR;
+ap1R[apPos1] = apInR + 0.6 * delayed;
+apPos1 += 1; apPos1 >= 8000 ? apPos1 = 0;
+
+readPos = apPos2 - apDelays[1]; readPos < 0 ? readPos += 8000;
+delayed = ap2L[readPos];
+apOut2L = delayed - 0.6 * apOutL;
+ap2L[apPos2] = apOutL + 0.6 * delayed;
+delayed = ap2R[readPos];
+apOut2R = delayed - 0.6 * apOutR;
+ap2R[apPos2] = apOutR + 0.6 * delayed;
+apPos2 += 1; apPos2 >= 8000 ? apPos2 = 0;
+
+readPos = apPos3 - apDelays[2]; readPos < 0 ? readPos += 8000;
+delayed = ap3L[readPos];
+apOut3L = delayed - 0.6 * apOut2L;
+ap3L[apPos3] = apOut2L + 0.6 * delayed;
+delayed = ap3R[readPos];
+apOut3R = delayed - 0.6 * apOut2R;
+ap3R[apPos3] = apOut2R + 0.6 * delayed;
+apPos3 += 1; apPos3 >= 8000 ? apPos3 = 0;
+
+readPos = apPos4 - apDelays[3]; readPos < 0 ? readPos += 8000;
+delayed = ap4L[readPos];
+apOut4L = delayed - 0.6 * apOut3L;
+ap4L[apPos4] = apOut3L + 0.6 * delayed;
+delayed = ap4R[readPos];
+apOut4R = delayed - 0.6 * apOut3R;
+ap4R[apPos4] = apOut3R + 0.6 * delayed;
+apPos4 += 1; apPos4 >= 8000 ? apPos4 = 0;
+
+readPos = apPos5 - apDelays[4]; readPos < 0 ? readPos += 8000;
+delayed = ap5L[readPos];
+apOut5L = delayed - 0.6 * apOut4L;
+ap5L[apPos5] = apOut4L + 0.6 * delayed;
+delayed = ap5R[readPos];
+apOut5R = delayed - 0.6 * apOut4R;
+ap5R[apPos5] = apOut4R + 0.6 * delayed;
+apPos5 += 1; apPos5 >= 8000 ? apPos5 = 0;
+
+readPos = apPos6 - apDelays[5]; readPos < 0 ? readPos += 8000;
+delayed = ap6L[readPos];
+apOut6L = delayed - 0.6 * apOut5L;
+ap6L[apPos6] = apOut5L + 0.6 * delayed;
+delayed = ap6R[readPos];
+apOut6R = delayed - 0.6 * apOut5R;
+ap6R[apPos6] = apOut5R + 0.6 * delayed;
+apPos6 += 1; apPos6 >= 8000 ? apPos6 = 0;
+
+diffusedL = apOut6L;
+diffusedR = apOut6R;
+
+// ============================================
+// STEP 12: BINAURAL TONAL MIX (cached tones)
+// ============================================
+// Add tonal binaural beats to spatial signal
+tonalL = diffusedL + cachedTonalL * 0.1;  // Subtle mix
+tonalR = diffusedR + cachedTonalR * 0.1;
+
+// ============================================
+// STEP 13: EARLY REFLECTIONS (cached env)
+// ============================================
+earlyOutL = 0; earlyOutR = 0;
+
+i = 0;
+while(i < 8)(
+    tapPos = earlyPos - earlyDelays[i];
+    tapPos < 0 ? tapPos += 5000;
+    
+    angle = i * pi / 4 + artistAngle * 0.5;
+    earlyPan = cos(angle) * (width / 100);
+    
+    earlyOutL += earlyL[tapPos] * (1 + earlyPan) * 0.15 * cachedEnvAmt;
+    earlyOutR += earlyR[tapPos] * (1 - earlyPan) * 0.15 * cachedEnvAmt;
+    
+    i += 1;
+);
+
+earlyL[earlyPos] = highsL;
+earlyR[earlyPos] = highsR;
+earlyPos += 1;
+earlyPos >= 5000 ? earlyPos = 0;
+
+// ============================================
+// STEP 14: FINAL 9D MIX
+// ============================================
+// Center focus
+centerL = (tonalL + tonalR) * 0.5 * cachedFocusAmt + tonalL * (1 - cachedFocusAmt);
+centerR = (tonalL + tonalR) * 0.5 * cachedFocusAmt + tonalR * (1 - cachedFocusAmt);
+
+spatialL = centerL + earlyOutL;
+spatialR = centerR + earlyOutR;
+
+wetL = spatialL * cachedWetAmt;
+wetR = spatialR * cachedWetAmt;
+
+dryHighL = highsL * (1 - cachedWetAmt);
+dryHighR = highsR * (1 - cachedWetAmt);
+
+// Mono bass anchor + dry highs + wet 9D spatial + binaural tones
+outL = bassMono + dryHighL + wetL;
+outR = bassMono + dryHighR + wetR;
+
+// Soft limit
+abs(outL) > 1.0 ? (outL = (outL > 0 ? 1 : -1) * (1.0 + tanh(abs(outL) - 1.0) * 0.3););
+abs(outR) > 1.0 ? (outR = (outR > 0 ? 1 : -1) * (1.0 + tanh(abs(outR) - 1.0) * 0.3););
+
+outL = clamp(outL, -1.5, 1.5);
+outR = clamp(outR, -1.5, 1.5);
+
+spl0 = outL;
+spl1 = outR;
