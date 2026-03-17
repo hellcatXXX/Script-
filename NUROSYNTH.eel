@@ -1,51 +1,29 @@
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  NEURO-SYNTH v8.2 — CHROME SPECIAL EDITION                       ║
-// ║  One-Button Maximum Consequence • The Tax Is Unavoidable         ║
+// ║  NEURO-SYNTH v9.2 — BOOSTED OUTPUT                                 ║
+// ║  8x Neural Gain • Verified Signal Path                             ║
 // ╚════════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  SLIDER DEFINITIONS                                                ║
 // ╚════════════════════════════════════════════════════════════════════╝
 
-// === PRIMARY COMPOUND (12 options) ===
-slider1:7<0,11,1{DREAMEATER,GHOSTLINE,ZENITH,OVERCLOCK,GODMODE,SYNTHWAVE,FLATLINE,STIMJUNKIE,ASMRTOUCH,VOIDWALKER,CHAOSCORE,ELEVATE}>Primary Compound
-
-// === SECONDARY COMPOUND ===  
-slider2:0<0,11,1{DREAMEATER,GHOSTLINE,ZENITH,OVERCLOCK,GODMODE,SYNTHWAVE,FLATLINE,STIMJUNKIE,ASMRTOUCH,VOIDWALKER,CHAOSCORE,ELEVATE}>Secondary Compound
-
-// === MIXING ===
+slider1:7<0,14,1{DREAMEATER,GHOSTLINE,ZENITH,OVERCLOCK,GODMODE,SYNTHWAVE,FLATLINE,STIMJUNKIE,ASMRTOUCH,VOIDWALKER,CHAOSCORE,ELEVATE,PINKHEAL,PHANTOMBASS,GAMMABURST}>Primary Compound
+slider2:0<0,14,1{DREAMEATER,GHOSTLINE,ZENITH,OVERCLOCK,GODMODE,SYNTHWAVE,FLATLINE,STIMJUNKIE,ASMRTOUCH,VOIDWALKER,CHAOSCORE,ELEVATE,PINKHEAL,PHANTOMBASS,GAMMABURST}>Secondary Compound
 slider3:2<0,2,1{Sequential,Parallel,Hybrid}>Mix Mode
 slider4:85<0,100,1>Blend Ratio (A%)
-
-// === SESSION ===
 slider5:20<1,120,1>Session Minutes
 slider6:75<0,100,1>Dose Strength %
 slider7:1<0,3,1{0,1,2,3}>Redose Count
-
-// === TIMELINE ===
 slider8:0<0,1,1{Auto,Manual}>Timeline Mode
 slider9:0<0,5,1{Come Up,Building,Peak,Decline,Crash,Afterglow}>Stage Preset
-
-// === AUDIO MIX ===
 slider10:85<0,100,1>Music Presence %
 slider11:70<0,100,1>Neural Amplification %
-
-// === MASTER CONTROL ===
 slider12:50<0,100,1>Master Tone Volume
-
-// === OVERDRIVE ===
 slider13:0<0,1,1{Off,On}>Overdrive
 slider14:2<1,4,0.5>Overdrive Speed
-
-// === THE TAX — CONSEQUENCE CONTROLS ===
 slider15:1<0,1,1{Off,On}>Tactile Warning (Jaw Pulse)
 slider16:1<0,1,1{Off,On}>The Drop (18Hz Nausea Floor)
-
-// === CHROME SPECIAL — MAXIMUM CONSEQUENCE ===
-// One button. Everything. Now.
 slider17:0<0,1,1{Normal,PAY THE TAX}>Chrome Special
-
-// === OVERDOSE SYSTEM ===
 slider18:1<0,1,1{Off,On}>Toxicity Engine
 slider19:60<0,100,1>Toxicity Level %
 slider20:1<0,1,1{Fixed,Auto-Ramp}>Toxicity Curve
@@ -57,10 +35,10 @@ slider21:15<0,100,1>Decay Velocity
 
 @init
 
-// === CONSTANTS ===
 pi = 3.14159265359;
 pi2 = 6.28318530718;
 BLOCK_SIZE = 64;
+delayBufferSize = 16384;
 
 // Phase breakpoints
 p0_0=0.30; p0_1=0.50; p0_2=0.90; p0_3=0.98; p0_4=0.995;
@@ -75,8 +53,10 @@ p8_0=0.50; p8_1=0.70; p8_2=0.95; p8_3=0.99; p8_4=0.999;
 p9_0=0.05; p9_1=0.15; p9_2=0.60; p9_3=0.90; p9_4=0.98;
 p10_0=0.20; p10_1=0.35; p10_2=0.50; p10_3=0.65; p10_4=0.80;
 p11_0=0.10; p11_1=0.25; p11_2=0.80; p11_3=0.95; p11_4=0.995;
+p12_0=0.15; p12_1=0.35; p12_2=0.60; p12_3=0.85; p12_4=0.95;
+p13_0=0.25; p13_1=0.45; p13_2=0.75; p13_3=0.90; p13_4=0.98;
+p14_0=0.10; p14_1=0.30; p14_2=0.50; p14_3=0.70; p14_4=0.90;
 
-// Stage targets
 stageTargets = 0;
 stageTargets[0] = 0.15;
 stageTargets[1] = 0.40;
@@ -85,15 +65,13 @@ stageTargets[3] = 0.85;
 stageTargets[4] = 0.93;
 stageTargets[5] = 0.98;
 
-// === SLIDER DEFAULTS ===
-slider1 = 3; slider2 = 4; slider3 = 2; slider4 = 60;
-slider5 = 60; slider6 = 75; slider7 = 3; slider8 = 0;
-slider9 = 0; slider10 = 55; slider11 = 70; slider12 = 100;
-slider13 = 1; slider14 = 2.00; slider15 = 1; slider16 = 1;
+slider1 = 7; slider2 = 9; slider3 = 0; slider4 = 53;
+slider5 = 20; slider6 = 75; slider7 = 3; slider8 = 0;
+slider9 = 0; slider10 = 95; slider11 = 70; slider12 = 73;
+slider13 = 0; slider14 = 2; slider15 = 1; slider16 = 1;
 slider17 = 0; slider18 = 1; slider19 = 60; slider20 = 1;
 slider21 = 15;
 
-// === MAP SLIDERS ===
 CompoundA = slider1;
 CompoundB = slider2;
 MixMode = slider3;
@@ -116,19 +94,13 @@ OverdoseIntensity = slider19;
 AutoEscalate = slider20;
 RampSpeed = slider21;
 
-// Chrome Special forces these
 chromeActive = 0;
 chromeFlash = 0;
+rampStartProgress = 0.3;
 
-// === BUFFERS ===
-delayBufferSize = 16384;
 delayBuffer = 0;
 memset(delayBuffer, 0, delayBufferSize * 2);
 
-onsetHist = 0;
-memset(onsetHist, 0, 16);
-
-// === STATE ===
 time = 0;
 blockCounter = 0;
 srate = 44100;
@@ -199,6 +171,389 @@ lastSampleR = 0;
 stutterPh = 0;
 hybridBGhostDelay = 15;
 
+neuroL = 0;
+neuroR = 0;
+genL = 0;
+genR = 0;
+ghostL = 0;
+ghostR = 0;
+sigOutL = 0;
+sigOutR = 0;
+
+tempOut = 0;
+tempL = 0;
+tempR = 0;
+
+// NEURAL GAIN BOOST - Applied to all compound output
+neuralGain = 8.0;
+
+// Phase variables
+phDreamPhantom = 0; phDreamL = 0; phDreamR = 0;
+phGhostHaas = 0;
+phZenithL = 0; phZenithR = 0; phZenTremor = 0; phZenMicro = 0;
+phOCFlutter = 0; phOC1 = 0; phOC2 = 0;
+phGodInfra = 0; phGodL = 0; phGodR = 0;
+phSWLFO = 0; phSWL = 0; phSWR = 0; pinkState = 0;
+phFlatL = 0; phFlatR = 0; phFlatViolate = 0; lastFlatBeat = 0;
+phStimGamma = 0; phStimBurst = 0; phStimBase = 0; phStimMicro = 0;
+phASMRRough1 = 0; phASMRRough2 = 0; phASMRPhantom = 0; phASMRAM = 0;
+phVoidInfra = 0; phVoidL = 0; phVoidR = 0; voidFFRState = 0;
+phChaos1 = 0; phChaos2 = 0; phChaosViolate = 0; lastChaosBeat = 0;
+phElevL = 0; phElevR = 0; phElevShimmer = 0; elevLLast = 0; elevRLast = 0;
+phPinkL = 0; phPinkR = 0; phPinkAM = 0; pinkHealState = 0;
+phPhantomFund = 0; phPhantomSub = 0; phPhantomL = 0; phPhantomR = 0;
+phGammaBurst = 0; phGammaGate = 0; phGammaL = 0; phGammaR = 0; phGammaAM = 0;
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  COMPOUND GENERATORS - All output boosted by neuralGain          ║
+// ╚════════════════════════════════════════════════════════════════════╝
+
+function advancePhase(ph, freq) (
+    ph = ph + pi2 * freq / srate;
+    ph >= pi2 ? ph = ph - pi2;
+    ph;
+);
+
+function generateDreameater(prog, dose, depth) (
+    fever = sin(time * pi2 * 0.1 / srate);
+    thetaFreq = 6 - prog * 4;
+    thetaFreq < 0.5 ? thetaFreq = 0.5 + fever * 0.3;
+    
+    phDreamL = advancePhase(phDreamL, 200 + thetaFreq * 0.5);
+    phDreamR = advancePhase(phDreamR, 200 - thetaFreq * 0.5);
+    binL = sin(phDreamL) * 0.4 * dose * depth;
+    binR = sin(phDreamR) * 0.4 * dose * depth;
+    
+    phDreamPhantom = advancePhase(phDreamPhantom, 40);
+    miss = 0;
+    i = 2;
+    while (i <= 5) (
+        miss = miss + sin(phDreamPhantom * i) / i;
+        i = i + 1;
+    );
+    miss = miss * (2.0 / log(5));
+    miss = miss * 0.3 * dose * depth;
+    
+    rand(1) < (prog * 0.02) ? miss = miss * 0.1;
+    
+    genL = (binL + miss * 0.6) * neuralGain;
+    genR = (binR + miss * 0.6) * neuralGain;
+    
+    targetHeartRate = 60;
+);
+
+function generateGhostline(prog, dose, depth) (
+    genL = 0;
+    genR = 0;
+    targetHeartRate = 70 + prog * 20;
+);
+
+function generateZenith(prog, dose, depth) (
+    zenithStability = 1.0 - prog * 0.8;
+    
+    phZenithL = advancePhase(phZenithL, 120);
+    phZenithR = advancePhase(phZenithR, 80);
+    binL = sin(phZenithL) * 0.5 * dose * depth;
+    binR = sin(phZenithR) * 0.5 * dose * depth;
+    
+    zenithStability < 0.2 ? (
+        phZenTremor = advancePhase(phZenTremor, 200);
+        phZenMicro = advancePhase(phZenMicro, 50);
+        tremorMod = 1.0 + 0.3 * sin(phZenMicro);
+        trem = sin(phZenTremor * tremorMod) * 0.3 * dose * depth;
+        binL = binL * 0.7 + trem * 0.3;
+        binR = binR * 0.7 + trem * 0.3;
+    );
+    
+    genL = binL * neuralGain;
+    genR = binR * neuralGain;
+    
+    targetHeartRate = 70 + (1.0 - zenithStability) * 80;
+);
+
+function generateOverclock(prog, dose, depth) (
+    clockSpeed = 1.0 + dose * 2.0;
+    thermalThrottle = prog > 0.6 ? 1.0 - (prog - 0.6) * 2.5 : 1.0;
+    clockSpeed = clockSpeed * max(0.3, thermalThrottle);
+    
+    phOC1 = advancePhase(phOC1, 200 * clockSpeed);
+    phOC2 = advancePhase(phOC2, 200 * clockSpeed + 15 * clockSpeed);
+    rough = (sin(phOC1) + sin(phOC2)) * 0.5;
+    rough = rough * abs(rough) * 0.4 * dose * depth;
+    
+    phOCFlutter = advancePhase(phOCFlutter, 8 * clockSpeed * thermalThrottle);
+    mod = 1.0 - 0.8 * 0.5 + 0.8 * 0.5 * sin(phOCFlutter);
+    
+    genL = rough * mod * 0.5 * neuralGain;
+    genR = rough * mod * 0.5 * neuralGain;
+    
+    targetHeartRate = 120 * clockSpeed;
+);
+
+function generateGodmode(prog, dose, depth) (
+    godPower = 1.0 - pow(prog, 2);
+    paranoia = 1.0 - godPower;
+    
+    phGodInfra = advancePhase(phGodInfra, 12);
+    infra = sin(phGodInfra) * 0.4 * godPower * dose * depth;
+    infra = infra + sin(phGodInfra * 2) * 0.5 * 0.2 * godPower * dose * depth;
+    infra = infra + sin(phGodInfra * 3) * 0.25 * 0.2 * godPower * dose * depth;
+    
+    paranoiaBeat = 8 + paranoia * 12;
+    phGodL = advancePhase(phGodL, 80 + paranoiaBeat * 0.5);
+    phGodR = advancePhase(phGodR, 80 - paranoiaBeat * 0.5);
+    binL = sin(phGodL) * 0.5 * paranoia * dose * depth;
+    binR = sin(phGodR) * 0.5 * paranoia * dose * depth;
+    
+    genL = (infra + binL) * neuralGain;
+    genR = (infra + binR) * neuralGain;
+    
+    targetHeartRate = 60 + paranoia * 100;
+);
+
+function generateSynthwave(prog, dose, depth) (
+    white = rand(2) - 1;
+    pinkState = pinkState * 0.99 + white * 0.01;
+    pink = pinkState * 3.5 * 0.3 * dose * depth;
+    
+    swLFO = sin(time * pi2 * 0.08 / srate);
+    
+    phSWL = advancePhase(phSWL, 150 + (10 + swLFO * 5) * 0.5);
+    phSWR = advancePhase(phSWR, 150 - (10 + swLFO * 5) * 0.5);
+    binL = sin(phSWL) * 0.4 * dose * depth;
+    binR = sin(phSWR) * 0.4 * dose * depth;
+    
+    phSWLFO = advancePhase(phSWLFO, 0.08);
+    mod = 1.0 - 0.5 * 0.5 + 0.5 * 0.5 * sin(phSWLFO);
+    
+    genL = (pink + binL) * mod * neuralGain;
+    genR = (pink + binR) * mod * neuralGain;
+    
+    targetHeartRate = 75 + swLFO * 10;
+);
+
+function generateFlatline(prog, dose, depth) (
+    flatlineCompression = 1.0 - prog * 0.9;
+    
+    phFlatL = advancePhase(phFlatL, 50.25);
+    phFlatR = advancePhase(phFlatR, 49.75);
+    binL = sin(phFlatL) * 0.6 * dose * depth;
+    binR = sin(phFlatR) * 0.6 * dose * depth;
+    
+    phFlatViolate = advancePhase(phFlatViolate, 1.0);
+    beat = phFlatViolate < lastFlatBeat ? 1 : 0;
+    lastFlatBeat = phFlatViolate;
+    rand(1) < (prog * 0.3) && beat ? (
+        rand(1) < 0.5 ? (
+            binL = binL * 0.2;
+            binR = binR * 0.2;
+        ) : (
+            binL = binL + (rand(2) - 1) * 0.8;
+            binR = binR + (rand(2) - 1) * 0.8;
+        );
+    );
+    
+    genL = binL * flatlineCompression * neuralGain;
+    genR = binR * flatlineCompression * neuralGain;
+    
+    prog < 0.7 ? targetHeartRate = 60 - prog * 40 : 
+    prog < 0.9 ? targetHeartRate = 30 + rand(1) * 20 : 
+    targetHeartRate = 0;
+);
+
+function generateStimjunkie(prog, dose, depth) (
+    stimArrhythmia = prog > 0.4 ? sin(time * pi2 * 3 / srate) * 30 * prog : 0;
+    
+    burstFreq = 3 + stimArrhythmia * 0.1;
+    phStimGamma = advancePhase(phStimGamma, 40);
+    phStimBurst = advancePhase(phStimBurst, burstFreq);
+    burstGate = phStimBurst < (pi2 * 0.3) ? 1.0 : 0.0;
+    burstGate = burstGate * (0.5 + 0.5 * sin(phStimBurst * 0.5));
+    burst = sin(phStimGamma) * burstGate * 0.6 * dose * depth;
+    
+    phStimBase = advancePhase(phStimBase, 300);
+    phStimMicro = advancePhase(phStimMicro, 60 + prog * 20);
+    tremorMod = 1.0 + 0.3 * sin(phStimMicro);
+    trem = sin(phStimBase * tremorMod) * 0.3 * dose * depth;
+    
+    fever = sin(time * pi2 * 0.1 / srate);
+    
+    genL = (burst * 0.7 + trem * 0.3 * (0.6 + 0.4 * fever)) * neuralGain;
+    genR = (burst * 0.7 + trem * 0.3 * (0.6 + 0.4 * fever)) * neuralGain;
+    
+    targetHeartRate = 80 + prog * 100 + stimArrhythmia;
+    targetHeartRate > 220 ? targetHeartRate = 220;
+);
+
+function generateASMRtouch(prog, dose, depth) (
+    phASMRRough1 = advancePhase(phASMRRough1, 3000);
+    phASMRRough2 = advancePhase(phASMRRough2, 3200);
+    rough = (sin(phASMRRough1) + sin(phASMRRough2)) * 0.5;
+    rough = rough * abs(rough) * 0.4 * dose * depth;
+    
+    phASMRPhantom = advancePhase(phASMRPhantom, 8000);
+    miss = 0;
+    i = 2;
+    while (i <= 4) (
+        miss = miss + sin(phASMRPhantom * i) / i;
+        i = i + 1;
+    );
+    miss = miss * (2.0 / log(4)) * 0.3 * dose * depth;
+    
+    phASMRAM = advancePhase(phASMRAM, 12);
+    mod = 1.0 - 0.3 * 0.5 + 0.3 * 0.5 * sin(phASMRAM);
+    
+    genL = (rough * 0.5 + miss * 0.3) * mod * neuralGain;
+    genR = (rough * 0.5 + miss * 0.3) * mod * neuralGain;
+    
+    targetHeartRate = 55 + prog * 15;
+);
+
+function generateVoidwalker(prog, dose, depth, inL, inR) (
+    voidFreq = 15 + prog * 10;
+    
+    phVoidInfra = advancePhase(phVoidInfra, voidFreq);
+    infra = sin(phVoidInfra) * 0.5 * dose * depth;
+    infra = infra + sin(phVoidInfra * 2) * 0.5 * 0.8 * 0.5 * dose * depth;
+    infra = infra + sin(phVoidInfra * 3) * 0.25 * 0.8 * 0.5 * dose * depth;
+    
+    inputEnergy = (abs(inL) + abs(inR)) * 0.5;
+    error = inputEnergy - voidFFRState;
+    voidFFRState = voidFFRState + 0.1 * error;
+    ffr = voidFFRState * 0.4;
+    
+    beatFreq = 4 - prog * 2;
+    phVoidL = advancePhase(phVoidL, 60 + beatFreq * 0.5);
+    phVoidR = advancePhase(phVoidR, 60 - beatFreq * 0.5);
+    binL = sin(phVoidL) * 0.3 * dose * depth;
+    binR = sin(phVoidR) * 0.3 * dose * depth;
+    
+    voidWidth = 0.5 + prog * 0.5;
+    
+    genL = (infra * voidWidth + ffr * 0.3 + binL * 0.2) * neuralGain;
+    genR = (infra * voidWidth + ffr * 0.3 + binR * 0.2) * neuralGain;
+    
+    targetHeartRate = 50 + prog * 30;
+);
+
+function generateChaoscore(prog, dose, depth) (
+    chaosBase = 2.0;
+    chaosDrift = 1 + sin(time * pi2 * 0.001 / srate) * 0.3;
+    
+    phChaos1 = advancePhase(phChaos1, 200 * chaosBase * chaosDrift);
+    phChaos2 = advancePhase(phChaos2, 200 * chaosBase * chaosDrift + 50 * chaosBase);
+    rough = (sin(phChaos1) + sin(phChaos2)) * 0.5;
+    rough = rough * abs(rough) * 0.4 * dose * depth;
+    
+    randFreq = 200 + rand(1) * 100;
+    phChaosL = advancePhase(phChaosL, randFreq + 10);
+    phChaosR = advancePhase(phChaosR, randFreq - 10);
+    binL = sin(phChaosL) * 0.3 * dose * depth;
+    binR = sin(phChaosR) * 0.3 * dose * depth;
+    
+    phChaosViolate = advancePhase(phChaosViolate, 0.5 + rand(1));
+    beat = phChaosViolate < lastChaosBeat ? 1 : 0;
+    lastChaosBeat = phChaosViolate;
+    beat && rand(1) < 0.4 ? (
+        rough = rough * 0.4;
+        binL = binL + (rand(2) - 1) * 0.6;
+        binR = binR + (rand(2) - 1) * 0.6;
+    );
+    
+    chaosRand = rand(1);
+    chaosStutter = chaosRand < 0.1 ? 0.0 : 1.0;
+    
+    genL = (rough * 0.6 + binL * 0.4) * chaosStutter * neuralGain;
+    genR = (rough * 0.6 + binR * 0.4) * chaosStutter * neuralGain;
+    
+    targetHeartRate = 90 + sin(time * pi2 * 0.07 / srate) * 20;
+);
+
+function generateElevate(prog, dose, depth) (
+    elevSwell = (1 - cos(prog * pi)) * 0.5;
+    
+    phElevL = advancePhase(phElevL, 200 + elevSwell * 100);
+    phElevR = advancePhase(phElevR, 250 - elevSwell * 50);
+    asymL = sin(phElevL) * 0.4 * dose * depth;
+    asymR = sin(phElevR) * 0.4 * dose * depth;
+    
+    phElevShimmer = advancePhase(phElevShimmer, 0.5);
+    mod = 1.0 - 0.4 * 0.5 + 0.4 * 0.5 * sin(phElevShimmer);
+    
+    genL = asymL * mod * neuralGain;
+    genR = asymR * mod * neuralGain;
+    
+    targetHeartRate = 70 + elevSwell * 50;
+);
+
+function generatePinkheal(prog, dose, depth) (
+    white = rand(2) - 1;
+    pinkHealState = pinkHealState * 0.99 + white * 0.01;
+    pink = pinkHealState * 3.5 * 0.4 * dose * depth;
+    
+    phPinkL = advancePhase(phPinkL, 103);
+    phPinkR = advancePhase(phPinkR, 97);
+    binL = sin(phPinkL) * 0.5 * dose * depth;
+    binR = sin(phPinkR) * 0.5 * dose * depth;
+    
+    phPinkAM = advancePhase(phPinkAM, 1.5);
+    mod = 1.0 - 0.3 * 0.5 + 0.3 * 0.5 * sin(phPinkAM);
+    
+    genL = (pink + binL * 0.5) * mod * neuralGain;
+    genR = (pink + binR * 0.5) * mod * neuralGain;
+    
+    targetHeartRate = 60 - prog * 15;
+);
+
+function generatePhantombass(prog, dose, depth) (
+    fundFreq = 30 + prog * 20;
+    
+    phPhantomFund = advancePhase(phPhantomFund, fundFreq);
+    miss = 0;
+    i = 2;
+    while (i <= 7) (
+        miss = miss + sin(phPhantomFund * i) / i;
+        i = i + 1;
+    );
+    miss = miss * (2.0 / log(7)) * 0.8 * dose * depth;
+    
+    phPhantomSub = advancePhase(phPhantomSub, 18);
+    infra = sin(phPhantomSub) * 0.4 * dose * depth;
+    infra = infra + sin(phPhantomSub * 2) * 0.5 * 1.0 * 0.4 * dose * depth;
+    infra = infra + sin(phPhantomSub * 3) * 0.25 * 1.0 * 0.4 * dose * depth;
+    
+    phPhantomL = advancePhase(phPhantomL, 80.5);
+    phPhantomR = advancePhase(phPhantomR, 79.5);
+    binL = sin(phPhantomL) * 0.3 * dose * depth;
+    binR = sin(phPhantomR) * 0.3 * dose * depth;
+    
+    genL = (miss * 0.5 + infra * 0.3 + binL * 0.2) * neuralGain;
+    genR = (miss * 0.5 + infra * 0.3 + binR * 0.2) * neuralGain;
+    
+    targetHeartRate = 55 + prog * 10;
+);
+
+function generateGammaburst(prog, dose, depth) (
+    phGammaBurst = advancePhase(phGammaBurst, 40);
+    phGammaGate = advancePhase(phGammaGate, 4);
+    burstGate = phGammaGate < (pi2 * 0.25) ? 1.0 : 0.0;
+    burstGate = burstGate * (0.5 + 0.5 * sin(phGammaGate * 0.5));
+    burst = sin(phGammaBurst) * burstGate * 0.7 * dose * depth;
+    
+    phGammaL = advancePhase(phGammaL, 100);
+    phGammaR = advancePhase(phGammaR, 100.5);
+    asymL = sin(phGammaL) * 0.3 * dose * depth;
+    asymR = sin(phGammaR) * 0.3 * dose * depth;
+    
+    phGammaAM = advancePhase(phGammaAM, 4);
+    mod = 1.0 - 0.2 * 0.5 + 0.2 * 0.5 * sin(phGammaAM);
+    
+    genL = (burst * 0.8 + asymL * 0.2 * mod) * neuralGain;
+    genR = (burst * 0.8 + asymR * 0.2 * mod) * neuralGain;
+    
+    targetHeartRate = 75 + prog * 25;
+);
+
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  SAMPLE PROCESSING                                                 ║
 // ╚════════════════════════════════════════════════════════════════════╝
@@ -208,549 +563,392 @@ hybridBGhostDelay = 15;
 inL = spl0;
 inR = spl1;
 
-// Write to delay buffer
 delayBuffer[delayWritePos * 2] = inL;
 delayBuffer[delayWritePos * 2 + 1] = inR;
 delayWritePos = delayWritePos + 1;
 delayWritePos >= delayBufferSize ? delayWritePos = 0;
 
-// Block processing
 blockCounter = blockCounter + 1;
 blockCounter >= BLOCK_SIZE ? (
-  blockCounter = 0;
-  
-  // Read sliders
-  CompoundA = slider1;
-  CompoundB = slider2;
-  MixMode = slider3;
-  ABMix = slider4;
-  SessionLength = slider5;
-  DoseStrength = slider6;
-  RedoseCount = slider7;
-  TimelineMode = slider8;
-  StagePreset = slider9;
-  MusicMix = slider10;
-  BinauralDepth = slider11;
-  MasterVolume = slider12 / 100;
-  Overdrive = slider13;
-  OverdriveSpeed = slider14;
-  TactileWarning = slider15;
-  TheDrop = slider16;
-  ChromeSpecial = slider17;
-  EnableOverdose = slider18;
-  OverdoseIntensity = slider19;
-  AutoEscalate = slider20;
-  RampSpeed = slider21;
-  
-  // === CHROME SPECIAL ACTIVATION ===
-  // One button. Everything. Now.
-  ChromeSpecial ? (
-    chromeActive = 1;
-    chromeFlash = chromeFlash + 1;
+    blockCounter = 0;
     
-    // Override all settings
-    CompoundA = 7;      // STIMJUNKIE — cardiac runaway
-    CompoundB = 9;      // VOIDWALKER — endless depth
-    MixMode = 2;        // Hybrid — A dominates, B ghosts
-    ABMix = 85;         // 85% A dominance
+    CompoundA = slider1;
+    CompoundB = slider2;
+    MixMode = slider3;
+    ABMix = slider4;
+    SessionLength = slider5;
+    DoseStrength = slider6;
+    RedoseCount = slider7;
+    TimelineMode = slider8;
+    StagePreset = slider9;
+    MusicMix = slider10;
+    BinauralDepth = slider11;
+    MasterVolume = slider12 / 100;
+    Overdrive = slider13;
+    OverdriveSpeed = slider14;
+    TactileWarning = slider15;
+    TheDrop = slider16;
+    ChromeSpecial = slider17;
+    EnableOverdose = slider18;
+    OverdoseIntensity = slider19;
+    AutoEscalate = slider20;
+    RampSpeed = slider21;
     
-    SessionLength = 45; // Long enough to hurt
-    DoseStrength = 100;   // Maximum weight
-    RedoseCount = 3;    // Maximum spikes
-    
-    TimelineMode = 0;   // Auto — no escape to manual
-    // Force to peak phase immediately
-    time = SessionLength * 60 * srate * 0.7;
-    
-    MusicMix = 40;      // Mostly neural, little music shelter
-    BinauralDepth = 100; // Maximum amplification
-    
-    MasterVolume = 0.85; // Loud but not clipped
-    
-    Overdrive = 1;      // Speed engaged
-    OverdriveSpeed = 4; // Maximum velocity
-    
-    TactileWarning = 1; // Jaw knows first
-    TheDrop = 1;        // 18Hz nausea floor active
-    
-    EnableOverdose = 1; // Tax collector enabled
-    OverdoseIntensity = 100; // Maximum toxicity
-    AutoEscalate = 1;   // Progressive destruction
-    RampSpeed = 50;     // Fast decay — no time to adapt
-    
-    // Zero grace period — consequences immediate
-    rampStartProgress = 0.0;
-  ) : (
-    chromeActive = 0;
-    chromeFlash = 0;
-    rampStartProgress = 0.3;
-  );
-  
-  // === TIMELINE ===
-  totalSessionSamples = SessionLength * 60 * srate;
-  autoProgress = time / totalSessionSamples;
-  autoProgress > 1 ? autoProgress = 1;
-  
-  TimelineMode == 0 && !ChromeSpecial ? (
-    sessionProgress = autoProgress;
-  ) : ChromeSpecial ? (
-    // Chrome Special forces peak phase
-    sessionProgress = 0.7 + (autoProgress * 0.25);
-  ) : (
-    StagePreset != lastStagePreset ? (
-      manualProgress = stageTargets[StagePreset];
-      lastStagePreset = StagePreset;
+    ChromeSpecial ? (
+        chromeActive = 1;
+        chromeFlash = chromeFlash + 1;
+        
+        CompoundA = 7;
+        CompoundB = 9;
+        MixMode = 2;
+        ABMix = 85;
+        
+        SessionLength = 45;
+        DoseStrength = 100;
+        RedoseCount = 3;
+        
+        TimelineMode = 0;
+        time = SessionLength * 60 * srate * 0.7;
+        
+        MusicMix = 40;
+        BinauralDepth = 100;
+        
+        MasterVolume = 0.85;
+        
+        Overdrive = 1;
+        OverdriveSpeed = 4;
+        
+        TactileWarning = 1;
+        TheDrop = 1;
+        
+        EnableOverdose = 1;
+        OverdoseIntensity = 100;
+        AutoEscalate = 1;
+        RampSpeed = 50;
+        
+        rampStartProgress = 0.0;
+    ) : (
+        chromeActive = 0;
+        chromeFlash = 0;
+        rampStartProgress = 0.3;
     );
-    sessionProgress = manualProgress;
-  );
-  
-  // === COMPOUND CHANGE ===
-  (CompoundA != currentA) || (CompoundB != currentB) ? (
-    currentA = CompoundA;
-    currentB = CompoundB;
-    compoundTransition = 0;
-  );
-  compoundTransition < 1 ? compoundTransition = compoundTransition + transitionSpeed;
-  
-  // === ACTIVE COMPOUND ===
-  MixMode == 0 ? (
-    sessionProgress < 0.5 ? activeCompound = currentA : activeCompound = (currentB >= 0 ? currentB : currentA);
-    activeB = -1; isHybrid = 0;
-  ) : MixMode == 1 ? (
-    activeCompound = currentA; activeB = currentB; isHybrid = 0;
-  ) : (
-    activeCompound = currentA; activeB = (currentB >= 0 ? currentB : currentA); isHybrid = 1;
-  );
-  
-  // === PHASE CALCULATION ===
-  ac = activeCompound;
-  ac == 0 ? (p0 = p0_0; p1 = p0_1; p2 = p0_2; p3 = p0_3; p4 = p0_4;);
-  ac == 1 ? (p0 = p1_0; p1 = p1_1; p2 = p1_2; p3 = p1_3; p4 = p1_4;);
-  ac == 2 ? (p0 = p2_0; p1 = p2_1; p2 = p2_2; p3 = p2_3; p4 = p2_4;);
-  ac == 3 ? (p0 = p3_0; p1 = p3_1; p2 = p3_2; p3 = p3_3; p4 = p3_4;);
-  ac == 4 ? (p0 = p4_0; p1 = p4_1; p2 = p4_2; p3 = p4_3; p4 = p4_4;);
-  ac == 5 ? (p0 = p5_0; p1 = p5_1; p2 = p5_2; p3 = p5_3; p4 = p5_4;);
-  ac == 6 ? (p0 = p6_0; p1 = p6_1; p2 = p6_2; p3 = p6_3; p4 = p6_4;);
-  ac == 7 ? (p0 = p7_0; p1 = p7_1; p2 = p7_2; p3 = p7_3; p4 = p7_4;);
-  ac == 8 ? (p0 = p8_0; p1 = p8_1; p2 = p8_2; p3 = p8_3; p4 = p8_4;);
-  ac == 9 ? (p0 = p9_0; p1 = p9_1; p2 = p9_2; p3 = p9_3; p4 = p9_4;);
-  ac == 10 ? (p0 = p10_0; p1 = p10_1; p2 = p10_2; p3 = p10_3; p4 = p10_4;);
-  ac == 11 ? (p0 = p11_0; p1 = p11_1; p2 = p11_2; p3 = p11_3; p4 = p11_4;);
-  
-  effPlat = p2 + RedoseCount * 0.08;
-  effPlat > 0.85 ? effPlat = 0.85;
-  effCrash = p4 + RedoseCount * 0.04;
-  
-  sessionProgress < p0 ? (curPhase = 0; phaseProgress = sessionProgress / p0;) : 
-  sessionProgress < p1 ? (curPhase = 1; phaseProgress = (sessionProgress - p0) / (p1 - p0);) : 
-  sessionProgress < effPlat ? (curPhase = 2; phaseProgress = (sessionProgress - p1) / (effPlat - p1);) : 
-  sessionProgress < p3 ? (curPhase = 3; phaseProgress = (sessionProgress - effPlat) / (p3 - effPlat);) : 
-  sessionProgress < effCrash ? (curPhase = 4; phaseProgress = (sessionProgress - p3) / (effCrash - p3);) : 
-  (curPhase = 5; phaseProgress = (sessionProgress - effCrash) / (1.0 - effCrash););
-  
-  // === GRACE PERIOD ===
-  gracePeriodSamples = totalSessionSamples * rampStartProgress;
-  time > gracePeriodSamples ? (
-    graceRemaining = 0;
-  ) : (
-    graceRemaining = (gracePeriodSamples - time) / gracePeriodSamples;
-  );
-  
-  // === COMPOUND PARAMETERS ===
-  dose = DoseStrength / 100;
-  depth = BinauralDepth / 100;
-  fever = sin(time * pi2 * 0.1 / srate);
-  prog = sessionProgress;
-  
-  ac == 0 ? (
-    baseVoidFreq = 4 - prog * 3;
-    baseVoidFreq < 0.5 ? baseVoidFreq = 0.5 + fever * 0.3;
-    baseGlowFreq = 40 - prog * 30;
-    targetGlowVal = prog * 0.8 * dose * depth;
-    targetTwitchVal = 0;
-    targetHeartRate = 60;
-    rand(1) < (prog * 0.02) ? targetVoidVal = targetVoidVal * 0.1;
-  ) : ac == 1 ? (
-    baseGlowFreq = 180 + fever * 40;
-    baseVoidFreq = 0.5 + prog;
-    targetGlowVal = (0.2 + prog * 0.6) * dose * depth;
-    targetVoidVal = prog * 0.3 * dose;
-    targetTwitchVal = prog * 0.2 * dose;
-    targetHeartRate = 70 + prog * 20;
-  ) : ac == 2 ? (
-    zenithStability = 1.0 - prog * 0.8;
-    targetHeartRate = 70 + (1.0 - zenithStability) * 80;
-    baseGlowFreq = 10 + prog * 5;
-    targetGlowVal = (0.4 + prog * 0.4) * dose * depth;
-    targetVoidVal = 0;
-    rand(1) < ((1.0 - zenithStability) * 0.05) ? (
-      targetTwitchVal = 0.8;
-      baseTwitchFreq = 100 + rand(1) * 200;
-    ) : targetTwitchVal = 0;
-  ) : ac == 3 ? (
-    clockSpeed = 1.0 + dose * 2.0;
-    thermalThrottle = prog > 0.6 ? 1.0 - (prog - 0.6) * 2.5 : 1.0;
-    clockSpeed = clockSpeed * max(0.3, thermalThrottle);
-    targetHeartRate = 120 * clockSpeed;
-    baseTwitchFreq = 40 * clockSpeed;
-    targetTwitchVal = 0.5 * dose * depth * thermalThrottle;
-    baseGlowFreq = 200 * clockSpeed;
-    targetGlowVal = 0.3 * dose * depth;
-    baseVoidFreq = 60;
-    targetVoidVal = (1.0 - thermalThrottle) * 0.5;
-  ) : ac == 4 ? (
-    godPower = 1.0 - pow(prog, 2);
-    paranoia = 1.0 - godPower;
-    targetHeartRate = 60 + paranoia * 100 + fever * paranoia * 20;
-    baseGlowFreq = 8 + paranoia * 20;
-    targetGlowVal = godPower * 0.8 * dose * depth;
-    baseVoidFreq = 2 + paranoia * 8;
-    targetVoidVal = paranoia * 0.6 * dose * depth;
-    targetTwitchVal = paranoia * 0.4 * dose * depth;
-  ) : ac == 5 ? (
-    swLFO = sin(time * pi2 * 0.08 / srate);
-    baseGlowFreq = 10 + swLFO * 5;
-    targetGlowVal = (0.3 + prog * 0.5) * dose * depth;
-    baseVoidFreq = 80;
-    targetVoidVal = prog * 0.4 * dose;
-    targetHeartRate = 75 + swLFO * 10;
-  ) : ac == 6 ? (
-    flatlineCompression = 1.0 - prog * 0.9;
-    targetHeartRate = prog < 0.7 ? 60 - prog * 40 : prog < 0.9 ? 30 + rand(1) * 20 : 0;
-    baseGlowFreq = 40 - prog * 35;
-    targetGlowVal = flatlineCompression * 0.5 * dose * depth;
-    baseVoidFreq = 60;
-    targetVoidVal = (1.0 - flatlineCompression) * 0.8;
-  ) : ac == 7 ? (
-    stimArrhythmia = prog > 0.4 ? sin(time * pi2 * 3 / srate) * 30 * prog : 0;
-    targetHeartRate = 80 + prog * 100 + stimArrhythmia;
-    targetHeartRate > 220 ? targetHeartRate = 220;
-    baseTwitchFreq = 25 + prog * 40;
-    targetTwitchVal = (0.3 + prog * 0.7) * dose * depth * (0.6 + 0.4 * fever);
-    baseGlowFreq = 180;
-    targetGlowVal = 0.2 * dose * depth;
-    baseVoidFreq = 2;
-  ) : ac == 8 ? (
-    baseGlowFreq = 3000 + fever * 500;
-    targetGlowVal = 0.4 * dose * depth * (0.5 + 0.5 * fever);
-    baseTwitchFreq = 8 + prog * 4;
-    targetTwitchVal = 0.2 * dose * depth;
-    baseVoidFreq = 4;
-    targetVoidVal = prog * 0.15 * dose;
-    targetHeartRate = 55 + prog * 15;
-  ) : ac == 9 ? (
-    baseVoidFreq = 15 + prog * 10;
-    targetVoidVal = (0.6 + prog * 0.4) * 0.5 * dose * depth;
-    baseGlowFreq = 60 - prog * 30;
-    targetGlowVal = (1.0 - prog * 0.5) * 0.3 * dose;
-    baseTwitchFreq = 2 + rand(1) * 3;
-    targetTwitchVal = 0.3 * dose * depth;
-    targetHeartRate = 50 + prog * 30;
-  ) : ac == 10 ? (
-    chaosBase = 2.0;
-    chaosRatio = 0.618;
-    baseTwitchFreq = chaosBase * 100 * (1 + sin(time * pi2 * 0.001 / srate) * 0.3);
-    targetTwitchVal = 0.4 * dose * depth;
-    baseGlowFreq = chaosBase * chaosRatio * 50;
-    targetGlowVal = 0.3 * dose * depth;
-    baseVoidFreq = chaosBase * chaosRatio * chaosRatio * 25;
-    targetVoidVal = 0.25 * dose * depth;
-    targetHeartRate = 90 + sin(time * pi2 * 0.07 / srate) * 20;
-  ) : (
-    elevSwell = (1 - cos(prog * pi)) * 0.5;
-    baseGlowFreq = 200 + prog * 400;
-    targetGlowVal = elevSwell * 0.8 * dose * depth;
-    targetHarm2 = elevSwell * 0.3 * prog;
-    targetHarm3 = elevSwell * 0.2 * prog;
-    baseTwitchFreq = 25 + elevSwell * 20;
-    targetTwitchVal = elevSwell * 0.4 * dose * depth;
-    baseVoidFreq = 40;
-    targetVoidVal = prog * 0.3 * dose;
-    targetHeartRate = 70 + elevSwell * 50;
-  );
-  
-  // Apply overdrive
-  Overdrive ? (
-    targetTwitchFreq = baseTwitchFreq * OverdriveSpeed;
-    targetGlowFreq = baseGlowFreq * OverdriveSpeed;
-    targetVoidFreq = baseVoidFreq * OverdriveSpeed;
-    targetHeartRate = baseHeartRate * OverdriveSpeed;
-    targetHeartRate > 250 ? targetHeartRate = 250;
-  ) : (
-    targetTwitchFreq = baseTwitchFreq;
-    targetGlowFreq = baseGlowFreq;
-    targetVoidFreq = baseVoidFreq;
-  );
-  
-  // Hybrid ghost
-  isHybrid && activeB >= 0 ? (
-    bc = activeB;
-    bc == 0 ? hybridBGhostDelay = 20 + fever * 15;
-    bc == 1 ? hybridBGhostDelay = 2 + prog * 18;
-    bc == 2 ? hybridBGhostDelay = 10;
-    bc == 3 ? hybridBGhostDelay = 15 + rand(1) * 5;
-    bc == 4 ? hybridBGhostDelay = 30;
-    bc == 5 ? hybridBGhostDelay = 10 + sin(time * pi2 * 0.08 / srate) * 10;
-    bc == 6 ? hybridBGhostDelay = 5;
-    bc == 7 ? hybridBGhostDelay = 3;
-    bc == 8 ? hybridBGhostDelay = 25 + fever * 20;
-    bc == 9 ? hybridBGhostDelay = 40 + prog * 20;
-    bc == 10 ? hybridBGhostDelay = 5 + rand(1) * 10;
-    bc == 11 ? hybridBGhostDelay = 8 + elevSwell * 15;
-  );
-  
-  // OD calculation
-  EnableOverdose ? (
-    AutoEscalate ? (
-      target = OverdoseIntensity / 100;
-      time > gracePeriodSamples ? (
-        rampProg = (time - gracePeriodSamples) / (totalSessionSamples - gracePeriodSamples);
-        rampProg > 1 ? rampProg = 1;
-        targetOD = target * rampProg * rampProg * (3 - 2 * rampProg);
-      ) : targetOD = 0;
-      
-      RedoseCount > 0 && sessionProgress > 0.5 ? (
-        spike = sin(sessionProgress * pi2 * RedoseCount * 0.5) * 0.08 * RedoseCount;
-        spike > 0 ? targetOD = targetOD + spike * (1.0 - targetOD);
-      );
-    ) : targetOD = OverdoseIntensity / 100;
-  ) : targetOD = 0;
-  
-  targetOD > 1 ? targetOD = 1;
-  targetOD < 0 ? targetOD = 0;
-  
-  blockEnergyL = 0;
-  blockEnergyR = 0;
-  
-  stutterState == 1 ? (
-    stutterCounter = stutterCounter - BLOCK_SIZE;
-    stutterCounter <= 0 ? stutterState = 0;
-  );
-  smoothedOD > 0.1 && stutterState == 0 && rand(1) < (smoothedOD * 0.02) ? (
-    stutterState = 1;
-    stutterCounter = floor(rand(1) * srate * 0.3);
-    stutterSourcePos = delayWritePos - floor(rand(1) * srMs * 50);
-    stutterSourcePos < 0 ? stutterSourcePos = stutterSourcePos + delayBufferSize;
-  );
+    
+    totalSessionSamples = SessionLength * 60 * srate;
+    autoProgress = time / totalSessionSamples;
+    autoProgress > 1 ? autoProgress = 1;
+    
+    TimelineMode == 0 && !ChromeSpecial ? (
+        sessionProgress = autoProgress;
+    ) : ChromeSpecial ? (
+        sessionProgress = 0.7 + (autoProgress * 0.25);
+    ) : (
+        StagePreset != lastStagePreset ? (
+            manualProgress = stageTargets[StagePreset];
+            lastStagePreset = StagePreset;
+        );
+        sessionProgress = manualProgress;
+    );
+    
+    (CompoundA != currentA) || (CompoundB != currentB) ? (
+        currentA = CompoundA;
+        currentB = CompoundB;
+        compoundTransition = 0;
+    );
+    compoundTransition < 1 ? compoundTransition = compoundTransition + transitionSpeed;
+    
+    MixMode == 0 ? (
+        sessionProgress < 0.5 ? activeCompound = currentA : activeCompound = (currentB >= 0 ? currentB : currentA);
+        activeB = -1; isHybrid = 0;
+    ) : MixMode == 1 ? (
+        activeCompound = currentA; activeB = currentB; isHybrid = 0;
+    ) : (
+        activeCompound = currentA; activeB = (currentB >= 0 ? currentB : currentA); isHybrid = 1;
+    );
+    
+    ac = activeCompound;
+    ac == 0 ? (p0 = p0_0; p1 = p0_1; p2 = p0_2; p3 = p0_3; p4 = p0_4;);
+    ac == 1 ? (p0 = p1_0; p1 = p1_1; p2 = p1_2; p3 = p1_3; p4 = p1_4;);
+    ac == 2 ? (p0 = p2_0; p1 = p2_1; p2 = p2_2; p3 = p2_3; p4 = p2_4;);
+    ac == 3 ? (p0 = p3_0; p1 = p3_1; p2 = p3_2; p3 = p3_3; p4 = p3_4;);
+    ac == 4 ? (p0 = p4_0; p1 = p4_1; p2 = p4_2; p3 = p4_3; p4 = p4_4;);
+    ac == 5 ? (p0 = p5_0; p1 = p5_1; p2 = p5_2; p3 = p5_3; p4 = p5_4;);
+    ac == 6 ? (p0 = p6_0; p1 = p6_1; p2 = p6_2; p3 = p6_3; p4 = p6_4;);
+    ac == 7 ? (p0 = p7_0; p1 = p7_1; p2 = p7_2; p3 = p7_3; p4 = p7_4;);
+    ac == 8 ? (p0 = p8_0; p1 = p8_1; p2 = p8_2; p3 = p8_3; p4 = p8_4;);
+    ac == 9 ? (p0 = p9_0; p1 = p9_1; p2 = p9_2; p3 = p9_3; p4 = p9_4;);
+    ac == 10 ? (p0 = p10_0; p1 = p10_1; p2 = p10_2; p3 = p10_3; p4 = p10_4;);
+    ac == 11 ? (p0 = p11_0; p1 = p11_1; p2 = p11_2; p3 = p11_3; p4 = p11_4;);
+    ac == 12 ? (p0 = p12_0; p1 = p12_1; p2 = p12_2; p3 = p12_3; p4 = p12_4;);
+    ac == 13 ? (p0 = p13_0; p1 = p13_1; p2 = p13_2; p3 = p13_3; p4 = p13_4;);
+    ac == 14 ? (p0 = p14_0; p1 = p14_1; p2 = p14_2; p3 = p14_3; p4 = p14_4;);
+    
+    effPlat = p2 + RedoseCount * 0.08;
+    effPlat > 0.85 ? effPlat = 0.85;
+    effCrash = p4 + RedoseCount * 0.04;
+    
+    sessionProgress < p0 ? (curPhase = 0; phaseProgress = sessionProgress / p0;) : 
+    sessionProgress < p1 ? (curPhase = 1; phaseProgress = (sessionProgress - p0) / (p1 - p0);) : 
+    sessionProgress < effPlat ? (curPhase = 2; phaseProgress = (sessionProgress - p1) / (effPlat - p1);) : 
+    sessionProgress < p3 ? (curPhase = 3; phaseProgress = (sessionProgress - effPlat) / (p3 - effPlat);) : 
+    sessionProgress < effCrash ? (curPhase = 4; phaseProgress = (sessionProgress - p3) / (effCrash - p3);) : 
+    (curPhase = 5; phaseProgress = (sessionProgress - effCrash) / (1.0 - effCrash););
+    
+    gracePeriodSamples = totalSessionSamples * rampStartProgress;
+    time > gracePeriodSamples ? (
+        graceRemaining = 0;
+    ) : (
+        graceRemaining = (gracePeriodSamples - time) / gracePeriodSamples;
+    );
+    
+    dose = DoseStrength / 100;
+    depth = BinauralDepth / 100;
+    prog = sessionProgress;
+    
+    // Generate primary compound
+    ac == 0 ? generateDreameater(prog, dose, depth) :
+    ac == 1 ? generateGhostline(prog, dose, depth) :
+    ac == 2 ? generateZenith(prog, dose, depth) :
+    ac == 3 ? generateOverclock(prog, dose, depth) :
+    ac == 4 ? generateGodmode(prog, dose, depth) :
+    ac == 5 ? generateSynthwave(prog, dose, depth) :
+    ac == 6 ? generateFlatline(prog, dose, depth) :
+    ac == 7 ? generateStimjunkie(prog, dose, depth) :
+    ac == 8 ? generateASMRtouch(prog, dose, depth) :
+    ac == 9 ? generateVoidwalker(prog, dose, depth, inL, inR) :
+    ac == 10 ? generateChaoscore(prog, dose, depth) :
+    ac == 11 ? generateElevate(prog, dose, depth) :
+    ac == 12 ? generatePinkheal(prog, dose, depth) :
+    ac == 13 ? generatePhantombass(prog, dose, depth) :
+    ac == 14 ? generateGammaburst(prog, dose, depth);
+    
+    // Hybrid ghost compound
+    isHybrid && activeB >= 0 ? (
+        bc = activeB;
+        bc == 0 ? (hybridBGhostDelay = 20 + sin(time * pi2 * 0.1 / srate) * 15; generateDreameater(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 1 ? (hybridBGhostDelay = 2 + prog * 18; generateGhostline(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 2 ? (hybridBGhostDelay = 10; generateZenith(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 3 ? (hybridBGhostDelay = 15 + rand(1) * 5; generateOverclock(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 4 ? (hybridBGhostDelay = 30; generateGodmode(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 5 ? (hybridBGhostDelay = 10 + sin(time * pi2 * 0.08 / srate) * 10; generateSynthwave(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 6 ? (hybridBGhostDelay = 5; generateFlatline(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 7 ? (hybridBGhostDelay = 3; generateStimjunkie(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 8 ? (hybridBGhostDelay = 25 + sin(time * pi2 * 0.1 / srate) * 20; generateASMRtouch(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 9 ? (hybridBGhostDelay = 40 + prog * 20; generateVoidwalker(prog, dose, depth * 0.3, inL, inR); ghostL = genL; ghostR = genR;) :
+        bc == 10 ? (hybridBGhostDelay = 5 + rand(1) * 10; generateChaoscore(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 11 ? (hybridBGhostDelay = 8 + (1 - cos(prog * pi)) * 0.5 * 15; generateElevate(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 12 ? (hybridBGhostDelay = 25; generatePinkheal(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 13 ? (hybridBGhostDelay = 35; generatePhantombass(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;) :
+        bc == 14 ? (hybridBGhostDelay = 12; generateGammaburst(prog, dose, depth * 0.3); ghostL = genL; ghostR = genR;);
+        
+        hybridGhostSamps = floor(hybridBGhostDelay * srMs);
+        ghostPos = delayWritePos - hybridGhostSamps;
+        ghostPos < 0 ? ghostPos = ghostPos + delayBufferSize;
+        genL = genL + delayBuffer[ghostPos * 2] * 0.15 + ghostL * 0.15;
+        genR = genR + delayBuffer[ghostPos * 2 + 1] * 0.15 + ghostR * 0.15;
+    );
+    
+    // OD calculation
+    EnableOverdose ? (
+        AutoEscalate ? (
+            target = OverdoseIntensity / 100;
+            time > gracePeriodSamples ? (
+                rampProg = (time - gracePeriodSamples) / (totalSessionSamples - gracePeriodSamples);
+                rampProg > 1 ? rampProg = 1;
+                targetOD = target * rampProg * rampProg * (3 - 2 * rampProg);
+            ) : targetOD = 0;
+            
+            RedoseCount > 0 && sessionProgress > 0.5 ? (
+                spike = sin(sessionProgress * pi2 * RedoseCount * 0.5) * 0.08 * RedoseCount;
+                spike > 0 ? targetOD = targetOD + spike * (1.0 - targetOD);
+            );
+        ) : targetOD = OverdoseIntensity / 100;
+    ) : targetOD = 0;
+    
+    targetOD > 1 ? targetOD = 1;
+    targetOD < 0 ? targetOD = 0;
+    
+    stutterState == 1 ? (
+        stutterCounter = stutterCounter - BLOCK_SIZE;
+        stutterCounter <= 0 ? stutterState = 0;
+    );
+    smoothedOD > 0.1 && stutterState == 0 && rand(1) < (smoothedOD * 0.02) ? (
+        stutterState = 1;
+        stutterCounter = floor(rand(1) * srate * 0.3);
+        stutterSourcePos = delayWritePos - floor(rand(1) * srMs * 50);
+        stutterSourcePos < 0 ? stutterSourcePos = stutterSourcePos + delayBufferSize;
+    );
+    
+    blockEnergyL = 0;
+    blockEnergyR = 0;
 );
 
-// Per-sample
 blockEnergyL = blockEnergyL + abs(inL);
 blockEnergyR = blockEnergyR + abs(inR);
 
 interp = 0.001;
 heartRate = heartRate * (1-interp) + targetHeartRate * interp;
-twitchFreq = twitchFreq * (1-interp) + targetTwitchFreq * interp;
-twitchVal = twitchVal * (1-interp) + targetTwitchVal * interp;
-glowFreq = glowFreq * (1-interp) + targetGlowFreq * interp;
-glowVal = glowVal * (1-interp) + targetGlowVal * interp;
-voidFreq = voidFreq * (1-interp) + targetVoidFreq * interp;
-voidVal = voidVal * (1-interp) + targetVoidVal * interp;
 
 // Signature effects
 sigMix = 0.15 + (DoseStrength / 100) * 0.25;
 sigActive = activeCompound;
 
 sigActive == 0 ? (
-  dreamDelay = 20 + sin(time * pi2 * 0.1 / srate) * 10;
-  dreamPos = delayWritePos - floor(dreamDelay * srMs);
-  dreamPos < 0 ? dreamPos = dreamPos + delayBufferSize;
-  ghostL = delayBuffer[dreamPos * 2] * 0.7;
-  ghostR = delayBuffer[dreamPos * 2 + 1] * 0.7;
-  ghostL = ghostL + lpZenL * 0.3; lpZenL = ghostL;
-  ghostR = ghostR + lpZenR * 0.3; lpZenR = ghostR;
-  sigOutL = inL * (1-sigMix) + ghostL * sigMix;
-  sigOutR = inR * (1-sigMix) + ghostR * sigMix;
+    dreamDelay = 20 + sin(time * pi2 * 0.1 / srate) * 10;
+    dreamPos = delayWritePos - floor(dreamDelay * srMs);
+    dreamPos < 0 ? dreamPos = dreamPos + delayBufferSize;
+    ghostSigL = delayBuffer[dreamPos * 2] * 0.7;
+    ghostSigR = delayBuffer[dreamPos * 2 + 1] * 0.7;
+    ghostSigL = ghostSigL + lpZenL * 0.3; lpZenL = ghostSigL;
+    ghostSigR = ghostSigR + lpZenR * 0.3; lpZenR = ghostSigR;
+    sigOutL = inL * (1-sigMix) + ghostSigL * sigMix;
+    sigOutR = inR * (1-sigMix) + ghostSigR * sigMix;
 ) : sigActive == 1 ? (
-  haasMs = 1 + (sessionProgress * 14);
-  haasSamps = floor(haasMs * srMs);
-  haasPos = delayWritePos - haasSamps;
-  haasPos < 0 ? haasPos = haasPos + delayBufferSize;
-  sigOutL = inL * (1 + sigMix * 0.2);
-  sigOutR = inR * (1-sigMix) + delayBuffer[haasPos * 2 + 1] * sigMix;
+    sigOutL = inL;
+    sigOutR = inR;
 ) : sigActive == 2 ? (
-  zenSat = sigMix * 0.3;
-  zenL = inL / (1 + abs(inL) * 0.5);
-  zenR = inR / (1 + abs(inR) * 0.5);
-  sigOutL = inL * (1-zenSat) + zenL * zenSat;
-  sigOutR = inR * (1-zenSat) + zenR * zenSat;
-  zenFocusL = (inL - lpZenL) * sigMix * 0.4; lpZenL = lpZenL * 0.9 + inL * 0.1;
-  zenFocusR = (inR - lpZenR) * sigMix * 0.4; lpZenR = lpZenR * 0.9 + inR * 0.1;
-  sigOutL = sigOutL + zenFocusL;
-  sigOutR = sigOutR + zenFocusR;
+    zenSat = sigMix * 0.3;
+    zenL = inL / (1 + abs(inL) * 0.5);
+    zenR = inR / (1 + abs(inR) * 0.5);
+    sigOutL = inL * (1-zenSat) + zenL * zenSat;
+    sigOutR = inR * (1-zenSat) + zenR * zenSat;
+    zenFocusL = (inL - lpZenL) * sigMix * 0.4; lpZenL = lpZenL * 0.9 + inL * 0.1;
+    zenFocusR = (inR - lpZenR) * sigMix * 0.4; lpZenR = lpZenR * 0.9 + inR * 0.1;
+    sigOutL = sigOutL + zenFocusL;
+    sigOutR = sigOutR + zenFocusR;
 ) : sigActive == 3 ? (
-  jitterAmt = sigMix * 3;
-  jitterL = sin(time * pi2 * 7 / srate) * jitterAmt;
-  jitterR = cos(time * pi2 * 7 / srate) * jitterAmt;
-  ocPosL = delayWritePos - 15 - floor(jitterL);
-  ocPosR = delayWritePos - 15 - floor(jitterR);
-  ocPosL < 0 ? ocPosL = ocPosL + delayBufferSize;
-  ocPosR < 0 ? ocPosR = ocPosR + delayBufferSize;
-  sigOutL = inL * (1-sigMix) + delayBuffer[ocPosL * 2] * sigMix;
-  sigOutR = inR * (1-sigMix) + delayBuffer[ocPosR * 2 + 1] * sigMix;
+    jitterAmt = sigMix * 3;
+    jitterL = sin(time * pi2 * 7 / srate) * jitterAmt;
+    jitterR = cos(time * pi2 * 7 / srate) * jitterAmt;
+    ocPosL = delayWritePos - 15 - floor(jitterL);
+    ocPosR = delayWritePos - 15 - floor(jitterR);
+    ocPosL < 0 ? ocPosL = ocPosL + delayBufferSize;
+    ocPosR < 0 ? ocPosR = ocPosR + delayBufferSize;
+    sigOutL = inL * (1-sigMix) + delayBuffer[ocPosL * 2] * sigMix;
+    sigOutR = inR * (1-sigMix) + delayBuffer[ocPosR * 2 + 1] * sigMix;
 ) : sigActive == 4 ? (
-  godSub = (abs(inL) + abs(inR)) * 0.5;
-  lpGod = lpGod * 0.95 + godSub * 0.05;
-  sigOutL = inL + lpGod * sigMix * 0.3;
-  sigOutR = inR + lpGod * sigMix * 0.3;
-  godSide = (sigOutL - sigOutR) * 0.5 * sigMix * 0.4;
-  sigOutL = sigOutL + godSide;
-  sigOutR = sigOutR - godSide;
+    godSub = (abs(inL) + abs(inR)) * 0.5;
+    lpGod = lpGod * 0.95 + godSub * 0.05;
+    sigOutL = inL + lpGod * sigMix * 0.3;
+    sigOutR = inR + lpGod * sigMix * 0.3;
+    godSide = (sigOutL - sigOutR) * 0.5 * sigMix * 0.4;
+    sigOutL = sigOutL + godSide;
+    sigOutR = sigOutR - godSide;
 ) : sigActive == 5 ? (
-  swLFO = sin(time * pi2 * 0.08 / srate);
-  swDelay = 5 + swLFO * 5;
-  swPos = delayWritePos - floor(swDelay * srMs);
-  swPos < 0 ? swPos = swPos + delayBufferSize;
-  sigOutL = inL * (1-sigMix*0.5) + delayBuffer[swPos * 2] * sigMix * 0.5;
-  sigOutR = inR * (1-sigMix*0.5) + delayBuffer[swPos * 2 + 1] * sigMix * 0.5;
+    swLFO = sin(time * pi2 * 0.08 / srate);
+    swDelay = 5 + swLFO * 5;
+    swPos = delayWritePos - floor(swDelay * srMs);
+    swPos < 0 ? swPos = swPos + delayBufferSize;
+    sigOutL = inL * (1-sigMix*0.5) + delayBuffer[swPos * 2] * sigMix * 0.5;
+    sigOutR = inR * (1-sigMix*0.5) + delayBuffer[swPos * 2 + 1] * sigMix * 0.5;
 ) : sigActive == 6 ? (
-  lpFlat = lpFlat * 0.7 + (inL + inR) * 0.5 * 0.3;
-  sigOutL = (inL - lpFlat) * (1 + sigMix * 0.1);
-  sigOutR = (inR - lpFlat) * (1 + sigMix * 0.1);
-  flatMono = (sigOutL + sigOutR) * 0.5;
-  sigOutL = sigOutL * (1-sigMix*0.3) + flatMono * sigMix * 0.3;
-  sigOutR = sigOutR * (1-sigMix*0.3) + flatMono * sigMix * 0.3;
+    lpFlat = lpFlat * 0.7 + (inL + inR) * 0.5 * 0.3;
+    sigOutL = (inL - lpFlat) * (1 + sigMix * 0.1);
+    sigOutR = (inR - lpFlat) * (1 + sigMix * 0.1);
+    flatMono = (sigOutL + sigOutR) * 0.5;
+    sigOutL = sigOutL * (1-sigMix*0.3) + flatMono * sigMix * 0.3;
+    sigOutR = sigOutR * (1-sigMix*0.3) + flatMono * sigMix * 0.3;
 ) : sigActive == 7 ? (
-  sjDiffL = inL - lastStimL; lastStimL = inL;
-  sjDiffR = inR - lastStimR; lastStimR = inR;
-  sjFastL = sjDiffL * sigMix * 2.0; sjFastL > 0.5 ? sjFastL = 0.5 : sjFastL < -0.5 ? sjFastL = -0.5;
-  sjFastR = sjDiffR * sigMix * 2.0; sjFastR > 0.5 ? sjFastR = 0.5 : sjFastR < -0.5 ? sjFastR = -0.5;
-  sigOutL = inL + sjFastL;
-  sigOutR = inR + sjFastR;
+    sjDiffL = inL - lastStimL; lastStimL = inL;
+    sjDiffR = inR - lastStimR; lastStimR = inR;
+    sjFastL = sjDiffL * sigMix * 2.0; sjFastL > 0.5 ? sjFastL = 0.5 : sjFastL < -0.5 ? sjFastL = -0.5;
+    sjFastR = sjDiffR * sigMix * 2.0; sjFastR > 0.5 ? sjFastR = 0.5 : sjFastR < -0.5 ? sjFastR = -0.5;
+    sigOutL = inL + sjFastL;
+    sigOutR = inR + sjFastR;
 ) : sigActive == 8 ? (
-  asmrBrushPh = time * pi2 * 12 / srate;
-  asmrBrushPos = delayWritePos - floor((10 + sin(asmrBrushPh) * 5) * srMs);
-  asmrBrushPos < 0 ? asmrBrushPos = asmrBrushPos + delayBufferSize;
-  brush1 = delayBuffer[asmrBrushPos * 2] * 0.4;
-  brush2 = delayBuffer[(asmrBrushPos - 50) * 2] * 0.3;
-  brush3 = delayBuffer[(asmrBrushPos - 100) * 2 + 1] * 0.2;
-  sigOutL = inL * 0.8 + (brush1 + brush2) * sigMix;
-  sigOutR = inR * 0.8 + (brush1 * 0.9 + brush3) * sigMix;
+    asmrBrushPh = time * pi2 * 12 / srate;
+    asmrBrushPos = delayWritePos - floor((10 + sin(asmrBrushPh) * 5) * srMs);
+    asmrBrushPos < 0 ? asmrBrushPos = asmrBrushPos + delayBufferSize;
+    brush1 = delayBuffer[asmrBrushPos * 2] * 0.4;
+    brush2 = delayBuffer[(asmrBrushPos - 50) * 2] * 0.3;
+    brush3 = delayBuffer[(asmrBrushPos - 100) * 2 + 1] * 0.2;
+    sigOutL = inL * 0.8 + (brush1 + brush2) * sigMix;
+    sigOutR = inR * 0.8 + (brush1 * 0.9 + brush3) * sigMix;
 ) : sigActive == 9 ? (
-  voidFallL = sin(time * pi2 * 0.03 / srate) * 30 * srMs;
-  voidFallR = cos(time * pi2 * 0.03 / srate) * 30 * srMs;
-  fallPosL = delayWritePos - floor(abs(voidFallL)) - 20;
-  fallPosR = delayWritePos - floor(abs(voidFallR)) - 20;
-  fallPosL < 0 ? fallPosL = fallPosL + delayBufferSize;
-  fallPosR < 0 ? fallPosR = fallPosR + delayBufferSize;
-  fallL = delayBuffer[fallPosL * 2] * 0.6;
-  fallR = delayBuffer[fallPosR * 2 + 1] * 0.6;
-  voidWidth = 0.5 + prog * 0.5;
-  sigOutL = inL * (1-voidWidth) + fallL * voidWidth;
-  sigOutR = inR * (1-voidWidth) + fallR * voidWidth;
+    voidFallL = sin(time * pi2 * 0.03 / srate) * 30 * srMs;
+    voidFallR = cos(time * pi2 * 0.03 / srate) * 30 * srMs;
+    fallPosL = delayWritePos - floor(abs(voidFallL)) - 20;
+    fallPosR = delayWritePos - floor(abs(voidFallR)) - 20;
+    fallPosL < 0 ? fallPosL = fallPosL + delayBufferSize;
+    fallPosR < 0 ? fallPosR = fallPosR + delayBufferSize;
+    fallL = delayBuffer[fallPosL * 2] * 0.6;
+    fallR = delayBuffer[fallPosR * 2 + 1] * 0.6;
+    voidWidthSig = 0.5 + prog * 0.5;
+    sigOutL = inL * (1-voidWidthSig) + fallL * voidWidthSig;
+    sigOutR = inR * (1-voidWidthSig) + fallR * voidWidthSig;
 ) : sigActive == 10 ? (
-  chaosRand = rand(1);
-  chaosStutter = chaosRand < 0.1 ? 0.0 : 1.0;
-  chaosDelay = 5 + rand(1) * 20;
-  chaosPos = delayWritePos - floor(chaosDelay * srMs);
-  chaosPos < 0 ? chaosPos = chaosPos + delayBufferSize;
-  chaosCrush = floor(delayBuffer[chaosPos * 2] * 8) / 8;
-  sigOutL = (inL * 0.7 + chaosCrush * 0.3) * chaosStutter;
-  sigOutR = (inR * 0.7 + chaosCrush * 0.3) * chaosStutter;
+    chaosRand = rand(1);
+    chaosStutter = chaosRand < 0.1 ? 0.0 : 1.0;
+    chaosDelay = 5 + rand(1) * 20;
+    chaosPos = delayWritePos - floor(chaosDelay * srMs);
+    chaosPos < 0 ? chaosPos = chaosPos + delayBufferSize;
+    chaosCrush = floor(delayBuffer[chaosPos * 2] * 8) / 8;
+    sigOutL = (inL * 0.7 + chaosCrush * 0.3) * chaosStutter;
+    sigOutR = (inR * 0.7 + chaosCrush * 0.3) * chaosStutter;
+) : sigActive == 11 ? (
+    elevSwellSig = (1 - cos(prog * pi)) * 0.5;
+    elevWidthSig = 0.3 + prog * 0.7;
+    elevShimmer = sin(time * pi2 * 0.5 / srate) * 0.5 + 0.5;
+    elevDelay = 8 + elevShimmer * 12;
+    elevPos = delayWritePos - floor(elevDelay * srMs);
+    elevPos < 0 ? elevPos = elevPos + delayBufferSize;
+    elevSigL = delayBuffer[elevPos * 2];
+    elevSigR = delayBuffer[elevPos * 2 + 1];
+    elevBrightL = elevSigL - (elevLLast * 0.7 + elevSigL * 0.3); elevLLast = elevSigL;
+    elevBrightR = elevSigR - (elevRLast * 0.7 + elevSigR * 0.3); elevRLast = elevSigR;
+    sigOutL = inL * (1-elevWidthSig) + (elevSigL + elevBrightL * 0.5) * elevWidthSig;
+    sigOutR = inR * (1-elevWidthSig) + (elevSigR + elevBrightR * 0.5) * elevWidthSig;
+) : sigActive == 12 ? (
+    pinkSigL = genL * 0.5 + inL * 0.5;
+    pinkSigR = genR * 0.5 + inR * 0.5;
+    sigOutL = pinkSigL / (1 + abs(pinkSigL) * 0.3);
+    sigOutR = pinkSigR / (1 + abs(pinkSigR) * 0.3);
+) : sigActive == 13 ? (
+    phantomSub = (genL + genR) * 0.5;
+    lpGod = lpGod * 0.9 + phantomSub * 0.1;
+    sigOutL = inL * (1-sigMix) + (genL + lpGod * 0.5) * sigMix;
+    sigOutR = inR * (1-sigMix) + (genR + lpGod * 0.5) * sigMix;
+) : sigActive == 14 ? (
+    gammaDiffL = inL - lastStimL; lastStimL = inL;
+    gammaDiffR = inR - lastStimR; lastStimR = inR;
+    sigOutL = inL * 0.7 + genL * 0.3 + gammaDiffL * sigMix * 0.5;
+    sigOutR = inR * 0.7 + genR * 0.3 + gammaDiffR * sigMix * 0.5;
 ) : (
-  elevSwell = (1 - cos(prog * pi)) * 0.5;
-  elevWidth = 0.3 + prog * 0.7;
-  elevShimmer = sin(time * pi2 * 0.5 / srate) * 0.5 + 0.5;
-  elevDelay = 8 + elevShimmer * 12;
-  elevPos = delayWritePos - floor(elevDelay * srMs);
-  elevPos < 0 ? elevPos = elevPos + delayBufferSize;
-  elevL = delayBuffer[elevPos * 2];
-  elevR = delayBuffer[elevPos * 2 + 1];
-  elevBrightL = elevL - (elevLLast * 0.7 + elevL * 0.3); elevLLast = elevL;
-  elevBrightR = elevR - (elevRLast * 0.7 + elevR * 0.3); elevRLast = elevR;
-  sigOutL = inL * (1-elevWidth) + (elevL + elevBrightL * 0.5) * elevWidth;
-  sigOutR = inR * (1-elevWidth) + (elevR + elevBrightR * 0.5) * elevWidth;
-);
-
-// Hybrid ghost
-isHybrid && activeB >= 0 ? (
-  hybridGhostSamps = floor(hybridBGhostDelay * srMs);
-  ghostPos = delayWritePos - hybridGhostSamps;
-  ghostPos < 0 ? ghostPos = ghostPos + delayBufferSize;
-  sigOutL = sigOutL + delayBuffer[ghostPos * 2] * 0.15;
-  sigOutR = sigOutR + delayBuffer[ghostPos * 2 + 1] * 0.15;
+    sigOutL = inL;
+    sigOutR = inR;
 );
 
 // ============================================
 // THE TAX — CONSEQUENCE SYSTEM
 // ============================================
 
-// === TACTILE WARNING (40Hz jaw pulse) ===
 TactileWarning && graceRemaining > 0 && graceRemaining < 0.05 ? (
-  warningPh = warningPh + pi2 * 40 / srate;
-  warningGate = graceRemaining / 0.05;
-  
-  warningL = sin(warningPh) * warningGate * 0.25;
-  warningR = sin(warningPh + pi) * warningGate * 0.25;
-  
-  sigOutL = sigOutL + warningL;
-  sigOutR = sigOutR + warningR;
+    warningPh = warningPh + pi2 * 40 / srate;
+    warningGate = graceRemaining / 0.05;
+    
+    warningL = sin(warningPh) * warningGate * 0.25;
+    warningR = sin(warningPh + pi) * warningGate * 0.25;
+    
+    sigOutL = sigOutL + warningL;
+    sigOutR = sigOutR + warningR;
 );
 
-// === THE DROP (18Hz nausea floor) ===
 TheDrop ? (
-  dropTrigger = (smoothedOD > 0.85) || ChromeSpecial;
-  
-  dropTrigger ? (
-    dropPh = dropPh + pi2 * 18 / srate;
-    dropL = sin(dropPh) * 0.35;
-    dropR = sin(dropPh + pi/2) * 0.35;
+    dropTrigger = (smoothedOD > 0.85) || ChromeSpecial;
     
-    dropSwell = dropSwell * 0.995 + 1.0 * 0.005;
-    dropSwell > 1 ? dropSwell = 1;
-    
-    sigOutL = sigOutL + dropL * dropSwell;
-    sigOutR = sigOutR + dropR * dropSwell;
-  ) : (
-    dropSwell = dropSwell * 0.9;
-  );
+    dropTrigger ? (
+        dropPh = dropPh + pi2 * 18 / srate;
+        dropL = sin(dropPh) * 0.35;
+        dropR = sin(dropPh + pi/2) * 0.35;
+        
+        dropSwell = dropSwell * 0.995 + 1.0 * 0.005;
+        dropSwell > 1 ? dropSwell = 1;
+        
+        sigOutL = sigOutL + dropL * dropSwell;
+        sigOutR = sigOutR + dropR * dropSwell;
+    ) : (
+        dropSwell = dropSwell * 0.9;
+    );
 );
-
-// ============================================
-// BINAURAL GENERATION
-// ============================================
-heartBPS = heartRate / 60;
-
-phHeart = phHeart + pi2 * heartBPS / srate;
-phHeart >= pi2 ? phHeart = phHeart - pi2;
-heartbeat = phHeart < 0.15 ? 0.9 : (phHeart < 0.25 ? 0.6 : exp(-(phHeart-0.25)*8));
-heartMod = 1.0 - heartbeat * 0.15;
-
-phTwitchL = phTwitchL + pi2 * (200 + twitchFreq) / srate;
-phTwitchR = phTwitchR + pi2 * (200 + twitchFreq * 1.02) / srate;
-phTwitchL >= pi2 ? phTwitchL = phTwitchL - pi2;
-phTwitchR >= pi2 ? phTwitchR = phTwitchR - pi2;
-twitchL = sin(phTwitchL) * twitchVal * heartMod;
-twitchR = sin(phTwitchR) * twitchVal * heartMod;
-
-phGlowL = phGlowL + pi2 * glowFreq / srate;
-phGlowR = phGlowR + pi2 * (glowFreq + 0.8) / srate;
-phGlowL >= pi2 ? phGlowL = phGlowL - pi2;
-phGlowR >= pi2 ? phGlowR = phGlowR - pi2;
-glowL = sin(phGlowL) * glowVal;
-glowR = sin(phGlowR) * glowVal;
-
-phVoidL = phVoidL + pi2 * voidFreq / srate;
-phVoidR = phVoidR + pi2 * voidFreq / srate;
-phVoidL >= pi2 ? phVoidL = phVoidL - pi2;
-phVoidR >= pi2 ? phVoidR = phVoidR - pi2;
-vRaw = phVoidL < pi2*0.5 ? 1.0 : -1.0;
-voidL = vRaw * 0.05 + (lastVoidL * 0.95); lastVoidL = voidL;
-voidR = vRaw * 0.05 + (lastVoidR * 0.95); lastVoidR = voidR;
-voidL = voidL * voidVal * 2;
-voidR = voidR * voidVal * 2;
-
-(curPhase == 4 || smoothedOD > 0.6) ? (
-  phRing = phRing + pi2 * 8000 / srate;
-  phRing >= pi2 ? phRing = phRing - pi2;
-  ringVol = (curPhase == 4 ? phaseProgress : smoothedOD) * 0.3;
-  ring = sin(phRing) * ringVol;
-  voidL = voidL + ring;
-  voidR = voidR + ring;
-);
-
-neuroL = (twitchL + glowL + voidL) * MasterVolume;
-neuroR = (twitchR + glowR + voidR) * MasterVolume;
 
 // ============================================
 // OVERDOSE DEGRADATION
@@ -758,60 +956,60 @@ neuroR = (twitchR + glowR + voidR) * MasterVolume;
 smoothedOD = smoothedOD * 0.99999 + targetOD * 0.00001;
 
 smoothedOD > 0.01 ? (
-  od = smoothedOD;
-  
-  stutterState == 1 ? (
-    sigOutL = delayBuffer[stutterSourcePos * 2];
-    sigOutR = delayBuffer[stutterSourcePos * 2 + 1];
-  );
-  
-  stutterPh = stutterPh + pi2 * heartBPS / srate;
-  stutterGate = sin(stutterPh) > (0.7 - od * 0.6) ? 1.0 : 0.0;
-  sigOutL = sigOutL * stutterGate;
-  sigOutR = sigOutR * stutterGate;
-  
-  bits = 16 - (od * 12);
-  steps = pow(2, bits);
-  sigOutL = floor(sigOutL * steps) / steps;
-  sigOutR = floor(sigOutR * steps) / steps;
-  
-  dist = od * 0.5;
-  sigOutL = sigOutL * (1 + dist);
-  sigOutR = sigOutR * (1 + dist);
-  sigOutL > 0.6 ? sigOutL = 1.2 - sigOutL : sigOutL < -0.6 ? sigOutL = -1.2 - sigOutL;
-  sigOutR > 0.6 ? sigOutR = 1.2 - sigOutR : sigOutR < -0.6 ? sigOutR = -1.2 - sigOutR;
-  
-  widthLFO = sin(time * pi2 * 0.3 / srate);
-  width = 1.0 - od * (0.6 + 0.4 * widthLFO);
-  mono = (sigOutL + sigOutR) * 0.5;
-  side = (sigOutL - sigOutR) * 0.5 * width;
-  sigOutL = mono + side;
-  sigOutR = mono - side;
-  
-  lpAmt = od * 0.95;
-  sigOutL = sigOutL * (1-lpAmt) + lastSampleL * lpAmt;
-  sigOutR = sigOutR * (1-lpAmt) + lastSampleR * lpAmt;
-  
-  ringFreq = 2000 + od * 6000;
-  phODRing = phODRing + pi2 * ringFreq / srate;
-  phODRing >= pi2 ? phODRing = phODRing - pi2;
-  odRing = sin(phODRing) * od * 0.2;
-  sigOutL = sigOutL + odRing;
-  sigOutR = sigOutR + odRing;
-  
-  od > 0.9 ? (
-    beep = sin(time * 0.1) > 0.95 ? 0.8 : 0;
-    coma = (od - 0.9) * 10;
-    sigOutL = sigOutL * (1-coma) + beep * coma;
-    sigOutR = sigOutR * (1-coma) + beep * coma;
-    rand(1) < 0.01 ? (
-      burst = (rand(2) - 1) * od;
-      sigOutL = sigOutL + burst;
-      sigOutR = sigOutR + burst;
+    od = smoothedOD;
+    
+    stutterState == 1 ? (
+        sigOutL = delayBuffer[stutterSourcePos * 2];
+        sigOutR = delayBuffer[stutterSourcePos * 2 + 1];
     );
-    sigOutL = (sigOutL + sigOutR) * 0.5;
-    sigOutR = sigOutL;
-  );
+    
+    stutterPh = stutterPh + pi2 * (heartRate / 60) / srate;
+    stutterGate = sin(stutterPh) > (0.7 - od * 0.6) ? 1.0 : 0.0;
+    sigOutL = sigOutL * stutterGate;
+    sigOutR = sigOutR * stutterGate;
+    
+    bits = 16 - (od * 12);
+    steps = pow(2, bits);
+    sigOutL = floor(sigOutL * steps) / steps;
+    sigOutR = floor(sigOutR * steps) / steps;
+    
+    dist = od * 0.5;
+    sigOutL = sigOutL * (1 + dist);
+    sigOutR = sigOutR * (1 + dist);
+    sigOutL > 0.6 ? sigOutL = 1.2 - sigOutL : sigOutL < -0.6 ? sigOutL = -1.2 - sigOutL;
+    sigOutR > 0.6 ? sigOutR = 1.2 - sigOutR : sigOutR < -0.6 ? sigOutR = -1.2 - sigOutR;
+    
+    widthLFO = sin(time * pi2 * 0.3 / srate);
+    width = 1.0 - od * (0.6 + 0.4 * widthLFO);
+    mono = (sigOutL + sigOutR) * 0.5;
+    side = (sigOutL - sigOutR) * 0.5 * width;
+    sigOutL = mono + side;
+    sigOutR = mono - side;
+    
+    lpAmt = od * 0.95;
+    sigOutL = sigOutL * (1-lpAmt) + lastSampleL * lpAmt;
+    sigOutR = sigOutR * (1-lpAmt) + lastSampleR * lpAmt;
+    
+    ringFreq = 2000 + od * 6000;
+    phODRing = phODRing + pi2 * ringFreq / srate;
+    phODRing >= pi2 ? phODRing = phODRing - pi2;
+    odRing = sin(phODRing) * od * 0.2;
+    sigOutL = sigOutL + odRing;
+    sigOutR = sigOutR + odRing;
+    
+    od > 0.9 ? (
+        beep = sin(time * 0.1) > 0.95 ? 0.8 : 0;
+        coma = (od - 0.9) * 10;
+        sigOutL = sigOutL * (1-coma) + beep * coma;
+        sigOutR = sigOutR * (1-coma) + beep * coma;
+        rand(1) < 0.01 ? (
+            burst = (rand(2) - 1) * od;
+            sigOutL = sigOutL + burst;
+            sigOutR = sigOutR + burst;
+        );
+        sigOutL = (sigOutL + sigOutR) * 0.5;
+        sigOutR = sigOutL;
+    );
 );
 
 lastSampleL = sigOutL;
@@ -821,19 +1019,21 @@ lastSampleR = sigOutR;
 // CHROME SPECIAL VISUAL FEEDBACK (audio flash)
 // ============================================
 ChromeSpecial && (chromeFlash % 10 < 5) ? (
-  // Audio-rate flash to indicate Chrome mode active
-  // This creates a subtle "alarm" texture in the output
-  chromeAlert = sin(time * pi2 * 440 / srate) * 0.02;
-  sigOutL = sigOutL + chromeAlert;
-  sigOutR = sigOutR - chromeAlert;  // Differential = alert
+    chromeAlert = sin(time * pi2 * 440 / srate) * 0.02;
+    sigOutL = sigOutL + chromeAlert;
+    sigOutR = sigOutR - chromeAlert;
 );
 
-// Final mix
+// Final mix - genL/genR already have neuralGain applied in generators
 musicWeight = MusicMix / 100;
 neuroWeight = 1.0 - musicWeight;
 
-outL = sigOutL * musicWeight + neuroL * neuroWeight;
-outR = sigOutR * musicWeight + neuroR * neuroWeight;
+// MasterVolume scales the already-boosted neural signal
+neuroOutL = genL * MasterVolume;
+neuroOutR = genR * MasterVolume;
+
+outL = sigOutL * musicWeight + neuroOutL * neuroWeight;
+outR = sigOutR * musicWeight + neuroOutR * neuroWeight;
 
 outL > 0.95 ? outL = 0.95 : outL < -0.95 ? outL = -0.95;
 outR > 0.95 ? outR = 0.95 : outR < -0.95 ? outR = -0.95;
