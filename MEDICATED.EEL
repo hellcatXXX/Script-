@@ -1,0 +1,828 @@
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  NUROSYNTH REBIRTH v3.4                                            ║
+// ║  Substances = Entrainment. Delivery = Your Choice.                 ║
+// ╚════════════════════════════════════════════════════════════════════╝
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  SLIDER DEFINITIONS                                                ║
+// ╚════════════════════════════════════════════════════════════════════╝
+
+slider1:7<0,15,1{DREAMEATER,GHOSTLINE,ZENITH,OVERCLOCK,GODMODE,SYNTHWAVE,FLATLINE,STIMJUNKIE,ASMRTOUCH,VOIDWALKER,CHAOSCORE,ELEVATE,PINKHEAL,PHANTOMBASS,GAMMABURST,EKXOSECHO}>COMPOUND A
+slider2:9<0,15,1{DREAMEATER,GHOSTLINE,ZENITH,OVERCLOCK,GODMODE,SYNTHWAVE,FLATLINE,STIMJUNKIE,ASMRTOUCH,VOIDWALKER,CHAOSCORE,ELEVATE,PINKHEAL,PHANTOMBASS,GAMMABURST,EKXOSECHO}>COMPOUND B
+slider3:2<0,2,1{Sequential,Parallel,Hybrid}>MIX MODE
+slider4:50<0,100,1>BLEND RATIO %
+slider5:30<5,180,1>SESSION LENGTH (min)
+slider6:75<0,100,1>INTENSITY %
+slider7:0<0,1,1{Manual,Auto}>TIMELINE MODE
+slider8:85<0,100,1>MUSIC %
+slider9:75<0,100,1>NEURAL DEPTH %
+slider10:65<0,100,1>MASTER VOLUME %
+slider11:0<0,1,1{Off,On}>THE DROP
+slider12:0<0,1,1{Off,On}>OVERDOSE
+slider13:50<0,100,1>TOXICITY %
+slider14:25<0,100,1>DECAY VELOCITY
+slider15:0<0,1,1{Off,On}>EKXO'S ECHO
+slider16:50<0,100,1>ECHO DENSITY
+slider17:0<0,2,1{Distributed,Concentrating,Folding}>ECHO STATE
+slider18:0<0,1,1{Off,On}>INFRASONIC FLOOR
+slider19:30<0,100,1>PHASE DISTORTION
+slider20:0<0,2,1{Binaural,Isochronic,Monaural}>WAVE DELIVERY MODE
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  INIT                                                              ║
+// ╚════════════════════════════════════════════════════════════════════╝
+
+@init
+
+pi = 3.14159265359;
+pi2 = 6.28318530718;
+
+// Initialize sliders
+slider1 = 7; slider2 = 15; slider3 = 2; slider4 = 50; slider5 = 30;
+slider6 = 75; slider7 = 1; slider8 = 85; slider9 = 75; slider10 = 45;
+slider11 = 1; slider12 = 1; slider13 = 50; slider14 = 25; slider15 = 1;
+slider16 = 50; slider17 = 0; slider18 = 1; slider19 = 30; slider20 = 1;
+
+// Session stages
+stageComeUp = 0.15; stageBuilding = 0.35; stagePeak = 0.65;
+stageDecline = 0.85; stageCrash = 0.95;
+
+// Compound breakpoints
+breakpoints = 0;
+i = 0; while (i < 80) (breakpoints[i] = 0; i = i + 1;);
+
+breakpoints[0*5+0]=0.25; breakpoints[0*5+1]=0.45; breakpoints[0*5+2]=0.80; breakpoints[0*5+3]=0.92; breakpoints[0*5+4]=0.97;
+breakpoints[1*5+0]=0.12; breakpoints[1*5+1]=0.35; breakpoints[1*5+2]=0.60; breakpoints[1*5+3]=0.82; breakpoints[1*5+4]=0.92;
+breakpoints[2*5+0]=0.18; breakpoints[2*5+1]=0.38; breakpoints[2*5+2]=0.68; breakpoints[2*5+3]=0.88; breakpoints[2*5+4]=0.95;
+breakpoints[3*5+0]=0.08; breakpoints[3*5+1]=0.22; breakpoints[3*5+2]=0.48; breakpoints[3*5+3]=0.72; breakpoints[3*5+4]=0.85;
+breakpoints[4*5+0]=0.06; breakpoints[4*5+1]=0.18; breakpoints[4*5+2]=0.42; breakpoints[4*5+3]=0.68; breakpoints[4*5+4]=0.82;
+breakpoints[5*5+0]=0.22; breakpoints[5*5+1]=0.42; breakpoints[5*5+2]=0.72; breakpoints[5*5+3]=0.90; breakpoints[5*5+4]=0.97;
+breakpoints[6*5+0]=0.38; breakpoints[6*5+1]=0.58; breakpoints[6*5+2]=0.82; breakpoints[6*5+3]=0.93; breakpoints[6*5+4]=0.998;
+breakpoints[7*5+0]=0.15; breakpoints[7*5+1]=0.35; breakpoints[7*5+2]=0.62; breakpoints[7*5+3]=0.85; breakpoints[7*5+4]=0.95;
+breakpoints[8*5+0]=0.45; breakpoints[8*5+1]=0.68; breakpoints[8*5+2]=0.93; breakpoints[8*5+3]=0.98; breakpoints[8*5+4]=0.999;
+breakpoints[9*5+0]=0.06; breakpoints[9*5+1]=0.18; breakpoints[9*5+2]=0.65; breakpoints[9*5+3]=0.92; breakpoints[9*5+4]=0.98;
+breakpoints[10*5+0]=0.18; breakpoints[10*5+1]=0.32; breakpoints[10*5+2]=0.48; breakpoints[10*5+3]=0.62; breakpoints[10*5+4]=0.78;
+breakpoints[11*5+0]=0.12; breakpoints[11*5+1]=0.28; breakpoints[11*5+2]=0.85; breakpoints[11*5+3]=0.93; breakpoints[11*5+4]=0.998;
+breakpoints[12*5+0]=0.18; breakpoints[12*5+1]=0.38; breakpoints[12*5+2]=0.65; breakpoints[12*5+3]=0.88; breakpoints[12*5+4]=0.95;
+breakpoints[13*5+0]=0.22; breakpoints[13*5+1]=0.42; breakpoints[13*5+2]=0.72; breakpoints[13*5+3]=0.88; breakpoints[13*5+4]=0.97;
+breakpoints[14*5+0]=0.12; breakpoints[14*5+1]=0.32; breakpoints[14*5+2]=0.55; breakpoints[14*5+3]=0.75; breakpoints[14*5+4]=0.92;
+breakpoints[15*5+0]=0.18; breakpoints[15*5+1]=0.38; breakpoints[15*5+2]=0.618; breakpoints[15*5+3]=0.88; breakpoints[15*5+4]=0.97;
+
+// Buffers
+delaySize = 32768;
+delayBuffer = 0;
+memset(delayBuffer, 0, delaySize * 2);
+
+echoSize = 16384;
+echoBufferL = 0; echoBufferR = 0;
+memset(echoBufferL, 0, echoSize);
+memset(echoBufferR, 0, echoSize);
+
+// State
+time = 0;
+delayWrite = 0;
+echoWrite = 0;
+sessionProgress = 0;
+currentStage = 0;
+
+// Phase registers: [0-7]=Compound A, [8-15]=Compound B, [16-23]=Shared
+phases = 0;
+i = 0; while (i < 32) (phases[i] = 0; i = i + 1;);
+
+// Filters
+lpPink = 0; lpGod = 0; lpFlat = 0; lpVoid = 0;
+lastL = 0; lastR = 0;
+
+// Toxicity
+smoothedOD = 0; targetOD = 0; dropSwell = 0;
+heartRate = 70; targetHeartRate = 70;
+
+// Output globals
+genL = 0; genR = 0;
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  CORE FUNCTIONS                                                    ║
+// ╚════════════════════════════════════════════════════════════════════╝
+
+function advancePhase(idx, freq) (
+    phases[idx] = phases[idx] + freq / srate;
+    phases[idx] >= 1 ? phases[idx] = phases[idx] - 1;
+    phases[idx] < 0 ? phases[idx] = phases[idx] + 1;
+    phases[idx];
+);
+
+function getBreakpoint(compound, idx) (
+    breakpoints[compound * 5 + idx];
+);
+
+function calculateCompoundProgress(prog, compound) (
+    p0 = getBreakpoint(compound, 0);
+    p1 = getBreakpoint(compound, 1);
+    p2 = getBreakpoint(compound, 2);
+    p3 = getBreakpoint(compound, 3);
+    p4 = getBreakpoint(compound, 4);
+    
+    prog < p0 ? (0; prog / p0) :
+    prog < p1 ? (1; (prog - p0) / (p1 - p0)) :
+    prog < p2 ? (2; (prog - p1) / (p2 - p1)) :
+    prog < p3 ? (3; (prog - p2) / (p3 - p2)) :
+    prog < p4 ? (4; (prog - p3) / (p4 - p3)) :
+    (5; (prog - p4) / (1 - p4));
+);
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  WAVE DELIVERY SYSTEM                                              ║
+// ╚════════════════════════════════════════════════════════════════════╝
+
+function deliverWave(mode, rawBeatL, rawBeatR, basePhase, amplitude) (
+    mode == 0 ? ( // Binaural - different frequencies to each ear
+        carrier = 200;
+        advancePhase(basePhase, carrier + rawBeatL);
+        advancePhase(basePhase+1, carrier + rawBeatR);
+        
+        outL = sin(phases[basePhase] * pi2) * amplitude;
+        outR = sin(phases[basePhase+1] * pi2) * amplitude;
+    ) : mode == 1 ? ( // Isochronic - amplitude modulation of carrier
+        carrier = 200;
+        // rawBeat is the modulation rate
+        modFreq = abs(rawBeatL);
+        advancePhase(basePhase, carrier);
+        advancePhase(basePhase+1, modFreq);
+        
+        tone = sin(phases[basePhase] * pi2);
+        // Square-ish AM for isochronic pulse
+        am = phases[basePhase+1] < 0.5 ? 1.0 : 0.1;
+        am = am * (0.8 + 0.2 * sin(phases[basePhase+1] * pi2)); // Soften
+        
+        outL = tone * am * amplitude;
+        outR = tone * am * amplitude;
+    ) : ( // Monaural - physical mixing creates beat
+        carrier = 200;
+        advancePhase(basePhase, carrier + rawBeatL);
+        advancePhase(basePhase+1, carrier + rawBeatR);
+        
+        // Mix to create beat in each ear (same signal)
+        mixed = (sin(phases[basePhase] * pi2) + sin(phases[basePhase+1] * pi2)) * 0.5;
+        outL = mixed * amplitude;
+        outR = mixed * amplitude;
+    );
+    
+    outL; outR;
+);
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  COMPOUND GENERATORS                                               ║
+// ╚════════════════════════════════════════════════════════════════════╝
+
+function generateDreameater(base, prog, dose, depth, delivery) (
+    fever = sin(time * pi2 * 0.1 / srate);
+    thetaFreq = max(0.5, 6 - prog * 4 + fever * 0.3);
+    
+    advancePhase(base+2, 40);
+    miss = 0; i = 2;
+    while (i <= 5) (
+        miss = miss + sin(phases[base+2] * pi2 * i) / i;
+        i = i + 1;
+    );
+    miss = miss * 0.3;
+    rand(1) < (prog * 0.02) ? miss = miss * 0.1;
+    
+    deliverWave(delivery, thetaFreq + miss * 0.5, -thetaFreq + miss * 0.5, base, 0.4 * dose * depth);
+    genL = outL;
+    genR = outR;
+    targetHeartRate = 60;
+);
+
+function generateGhostline(base, prog, dose, depth, delivery) (
+    advancePhase(base+2, 0.5 + prog * 2);
+    itd = sin(phases[base+2] * pi2) * (20 + prog * 80) * srate / 1000;
+    
+    posL = delayWrite - floor(itd);
+    posR = delayWrite + floor(itd);
+    posL < 0 ? posL = posL + delaySize;
+    posL >= delaySize ? posL = posL - delaySize;
+    posR < 0 ? posR = posR + delaySize;
+    posR >= delaySize ? posR = posR - delaySize;
+    
+    spatial = 0.5 + 0.5 * sin(phases[base+2] * pi2 * 3);
+    
+    wanderFreq = 6 + prog * 2;
+    deliverWave(delivery, wanderFreq, -wanderFreq, base, 0.3 * dose * depth);
+    
+    noise = (rand(2) - 1) * 0.3 * prog;
+    genL = delayBuffer[posL * 2] * 0.7 * spatial + outL + noise;
+    genR = delayBuffer[posR * 2 + 1] * 0.7 * (1 - spatial) + outR - noise;
+    targetHeartRate = 70 + prog * 20;
+);
+
+function generateZenith(base, prog, dose, depth, delivery) (
+    stability = 1.0 - prog * 0.8;
+    
+    alphaBase = 10;
+    
+    stability < 0.2 ? (
+        advancePhase(base+3, 200);
+        advancePhase(base+4, 50);
+        mod = 1.0 + 0.3 * sin(phases[base+4] * pi2);
+        tremor = sin(phases[base+3] * pi2 * mod) * 3;
+        rand(1) < (1-stability) * 0.1 ? tremor = tremor * (0.1 + rand(1) * 0.9);
+        alphaL = alphaBase + tremor;
+        alphaR = alphaBase - tremor;
+    ) : (
+        alphaL = alphaBase;
+        alphaR = alphaBase;
+    );
+    
+    deliverWave(delivery, alphaL, alphaR, base, 0.5 * dose * depth);
+    genL = outL;
+    genR = outR;
+    targetHeartRate = 70 + (1.0 - stability) * 80;
+);
+
+function generateOverclock(base, prog, dose, depth, delivery) (
+    clock = 1.0 + dose * 2.0;
+    thermal = prog > 0.6 ? 1.0 - (prog - 0.6) * 2.5 : 1.0;
+    clock = clock * max(0.3, thermal);
+    
+    betaBase = 25 * clock;
+    
+    advancePhase(base+3, 8 * clock * thermal);
+    flutter = sin(phases[base+3] * pi2) * 5 * clock;
+    
+    noise = prog > 0.6 ? (rand(2)-1) * (prog-0.6) * 10 : 0;
+    
+    deliverWave(delivery, betaBase + flutter + noise, betaBase - flutter - noise, base, 0.5 * dose * depth);
+    
+    roughL = outL * outL * 0.4;
+    roughR = outR * outR * 0.4;
+    
+    genL = roughL * 0.5 * dose * depth;
+    genR = roughR * 0.5 * dose * depth;
+    targetHeartRate = min(250, 120 * clock);
+);
+
+function generateGodmode(base, prog, dose, depth, delivery) (
+    power = 1.0 - pow(prog, 2);
+    paranoia = 1.0 - power;
+    
+    advancePhase(base+7, 12);
+    infra = sin(phases[base+7] * pi2) * 0.4 * power;
+    infra = infra + sin(phases[base+7] * pi2 * 2) * 0.2 * power;
+    infra = infra + sin(phases[base+7] * pi2 * 3) * 0.1 * power;
+    infra = infra + sin(phases[base+7] * pi2 * 0.5) * 0.2 * power;
+    
+    paranoiaBeat = 20 + paranoia * 15;
+    deliverWave(delivery, paranoiaBeat, -paranoiaBeat, base, 0.5 * paranoia * dose * depth);
+    
+    rand(1) < (paranoia * 0.05) ? (
+        voice = (rand(2) - 1) * 0.4 * paranoia;
+        outL = outL + voice;
+        outR = outR - voice * 0.7;
+    );
+    
+    genL = infra + outL;
+    genR = infra + outR;
+    targetHeartRate = 60 + paranoia * 100;
+);
+
+function generateSynthwave(base, prog, dose, depth, delivery) (
+    white = rand(2) - 1;
+    lpPink = lpPink * 0.99 + white * 0.01;
+    pink = lpPink * 3.5 * 0.3;
+    
+    drift = sin(time * pi2 * 0.08 / srate);
+    alphaL = 10 + drift * 2;
+    alphaR = 10 - drift * 2;
+    
+    deliverWave(delivery, alphaL, alphaR, base, 0.4 * dose * depth);
+    
+    wow = sin(time * pi2 * 0.3 / srate) * 0.02 * prog;
+    advancePhase(base+2, 0.08 * (1 + wow));
+    mod = 1.0 - 0.25 + 0.25 * sin(phases[base+2] * pi2);
+    
+    hiss = (rand(2) - 1) * 0.1 * prog;
+    
+    genL = (pink + outL + hiss) * mod;
+    genR = (pink + outR + hiss) * mod;
+    targetHeartRate = 75 + drift * 10 + prog * 20;
+);
+
+function generateFlatline(base, prog, dose, depth, delivery) (
+    compression = 1.0 - prog * 0.9;
+    
+    deltaL = 1.0 + prog;
+    deltaR = 0.5;
+    
+    deliverWave(delivery, deltaL, deltaR, base, 0.6 * compression * dose * depth);
+    
+    advancePhase(base+2, 1.0);
+    beat = phases[base+2] < lpFlat ? 1 : 0;
+    lpFlat = phases[base+2];
+    rand(1) < (prog * 0.3) && beat ? (
+        rand(1) < 0.5 ? (outL = outL * 0.2; outR = outR * 0.2;) :
+        (outL = outL + (rand(2) - 1) * 0.8; outR = outR + (rand(2) - 1) * 0.8;);
+    );
+    
+    genL = outL;
+    genR = outR;
+    targetHeartRate = prog < 0.7 ? 60 - prog * 40 : prog < 0.9 ? 30 + rand(1) * 20 : rand(1) * 10;
+);
+
+function generateStimjunkie(base, prog, dose, depth, delivery) (
+    arrhythmia = prog > 0.4 ? sin(time * pi2 * 3 / srate) * 30 * prog : 0;
+    
+    gammaBase = 40;
+    burstFreq = 3 + arrhythmia * 0.1;
+    
+    advancePhase(base+2, burstFreq);
+    gate = phases[base+2] < 0.3 ? 1.0 : 0.0;
+    gate = gate * (0.5 + 0.5 * sin(phases[base+2] * pi2 * 0.5));
+    
+    gammaL = gammaBase * gate;
+    gammaR = gammaBase * gate;
+    
+    advancePhase(base+1, 300);
+    advancePhase(base+3, 60 + prog * 20);
+    mod = 1.0 + 0.3 * sin(phases[base+3] * pi2);
+    tremor = sin(phases[base+1] * pi2 * mod) * 0.5;
+    
+    deliverWave(delivery, gammaL + tremor, gammaR - tremor, base, 0.6 * dose * depth);
+    
+    fever = sin(time * pi2 * 0.1 / srate);
+    jitter = (rand(2) - 1) * 0.2 * prog;
+    
+    genL = (outL * 0.7 + jitter) * dose * depth;
+    genR = (outR * 0.7 - jitter) * dose * depth;
+    targetHeartRate = min(250, 80 + prog * 100 + arrhythmia);
+);
+
+function generateASMRtouch(base, prog, dose, depth, delivery) (
+    advancePhase(base+0, 3000);
+    advancePhase(base+1, 3200);
+    rough = (sin(phases[base+0] * pi2) + sin(phases[base+1] * pi2)) * 0.5;
+    rough = rough * abs(rough) * 0.4;
+    
+    betaBeat = 25;
+    deliverWave(delivery, betaBeat, -betaBeat, base, 0.3 * dose * depth);
+    
+    advancePhase(base+2, 8000);
+    miss = 0; i = 2;
+    while (i <= 4) (
+        miss = miss + sin(phases[base+2] * pi2 * i) / i;
+        i = i + 1;
+    );
+    miss = miss * (2.0 / log(4)) * 0.3;
+    
+    advancePhase(base+5, 12);
+    mod = 1.0 - 0.15 + 0.15 * sin(phases[base+5] * pi2);
+    
+    advancePhase(base+6, 0.2);
+    unzip = sin(phases[base+6] * pi2) * 0.3 * prog;
+    
+    genL = (rough * 0.5 + outL + miss * 0.3) * mod * (1 + unzip);
+    genR = (rough * 0.5 + outR + miss * 0.3) * mod * (1 - unzip);
+    targetHeartRate = 55 + prog * 15;
+);
+
+function generateVoidwalker(base, prog, dose, depth, inL, inR, delivery) (
+    advancePhase(base+7, 15 + prog * 10);
+    infra = sin(phases[base+7] * pi2) * 0.5;
+    infra = infra + sin(phases[base+7] * pi2 * 2) * 0.2;
+    infra = infra + sin(phases[base+7] * pi2 * 3) * 0.1;
+    infra = infra + sin(phases[base+7] * pi2 * 0.5) * 0.3 * prog;
+    
+    energy = (abs(inL) + abs(inR)) * 0.5;
+    error = energy - lpVoid;
+    lpVoid = lpVoid + 0.1 * error;
+    ffr = lpVoid * 0.4;
+    
+    thetaBeat = 6 - prog * 3;
+    deliverWave(delivery, thetaBeat, -thetaBeat, base, 0.2 * dose * depth);
+    
+    advancePhase(base+6, 0.05);
+    suck = sin(phases[base+6] * pi2) * 0.5 * prog;
+    
+    genL = (infra * 0.5 + ffr * 0.3 + outL) * (1 + suck);
+    genR = (infra * 0.5 + ffr * 0.3 + outR) * (1 + suck);
+    targetHeartRate = 50 + prog * 30;
+);
+
+function generateChaoscore(base, prog, dose, depth, delivery) (
+    advancePhase(base+6, 0.001);
+    drift = 1 + sin(phases[base+6] * pi2) * 0.3;
+    
+    randCenter = 4 + rand(1) * 16;
+    advancePhase(base+0, randCenter * 20 * drift);
+    advancePhase(base+1, randCenter * 20 * drift + 100);
+    rough = (sin(phases[base+0] * pi2) + sin(phases[base+1] * pi2)) * 0.5;
+    rough = rough * abs(rough) * 0.4;
+    
+    randBeat = 2 + rand(1) * 8;
+    deliverWave(delivery, randBeat, -randBeat * 0.5, base, 0.4 * dose * depth);
+    
+    advancePhase(base+4, 0.5 + rand(1));
+    beat = phases[base+4] < lpFlat ? 1 : 0;
+    lpFlat = phases[base+4];
+    beat && rand(1) < 0.4 ? (
+        rough = rough * 0.4;
+        outL = outL + (rand(2) - 1) * 0.6;
+        outR = outR + (rand(2) - 1) * 0.6;
+    );
+    
+    stutter = rand(1) < 0.1 ? 0.0 : 1.0;
+    
+    genL = (rough * 0.6 + outL * 0.4) * stutter;
+    genR = (rough * 0.6 + outR * 0.4) * stutter;
+    targetHeartRate = 90 + sin(time * pi2 * 0.07 / srate) * 20;
+);
+
+function generateElevate(base, prog, dose, depth, delivery) (
+    swell = (1 - cos(prog * pi)) * 0.5;
+    
+    freqL = 20 + swell * 20;
+    freqR = 25 - swell * 5;
+    
+    deliverWave(delivery, freqL, freqR, base, 0.4 * dose * depth);
+    
+    advancePhase(base+2, 0.5);
+    mod = 1.0 - 0.2 + 0.2 * sin(phases[base+2] * pi2);
+    
+    overload = swell > 0.8 ? (swell - 0.8) * 5 : 0;
+    clipL = outL > 0.5 ? 0.5 + (outL - 0.5) * 0.1 : outL < -0.5 ? -0.5 + (outL + 0.5) * 0.1 : outL;
+    clipR = outR > 0.5 ? 0.5 + (outR - 0.5) * 0.1 : outR < -0.5 ? -0.5 + (outR + 0.5) * 0.1 : outR;
+    
+    genL = (outL * (1-overload) + clipL * overload) * mod;
+    genR = (outR * (1-overload) + clipR * overload) * mod;
+    targetHeartRate = 70 + swell * 50;
+);
+
+function generatePinkheal(base, prog, dose, depth, delivery) (
+    white = rand(2) - 1;
+    lpPink = lpPink * 0.99 + white * 0.01;
+    pink = lpPink * 3.5 * 0.4;
+    
+    deliverWave(delivery, 10, 10, base, 0.5 * dose * depth);
+    
+    advancePhase(base+2, 1.5);
+    mod = 1.0 - 0.15 + 0.15 * sin(phases[base+2] * pi2);
+    
+    advancePhase(base+6, 0.01);
+    unsettle = sin(phases[base+6] * pi2) * 0.1 * (1-prog);
+    
+    genL = (pink + outL) * mod * (1 + unsettle);
+    genR = (pink + outR) * mod * (1 - unsettle);
+    targetHeartRate = 60 - prog * 15;
+);
+
+function generatePhantombass(base, prog, dose, depth, delivery) (
+    fund = 30 + prog * 20;
+    
+    advancePhase(base+0, fund);
+    miss = 0; i = 2;
+    while (i <= 7) (
+        miss = miss + sin(phases[base+0] * pi2 * i) / i;
+        i = i + 1;
+    );
+    miss = miss * (2.0 / log(7)) * 0.8;
+    
+    advancePhase(base+7, 18);
+    infra = sin(phases[base+7] * pi2) * 0.4;
+    infra = infra + sin(phases[base+7] * pi2 * 2) * 0.2;
+    infra = infra + sin(phases[base+7] * pi2 * 3) * 0.1;
+    infra = infra + sin(phases[base+7] * pi2 * 0.5) * 0.3 * prog;
+    
+    deliverWave(delivery, 2, 2.5, base, 0.2 * dose * depth);
+    
+    advancePhase(base+6, 0.08);
+    pressure = sin(phases[base+6] * pi2) * 0.3 * prog;
+    
+    genL = (miss * 0.5 + infra * 0.3 + outL) * (1 + pressure);
+    genR = (miss * 0.5 + infra * 0.3 + outR) * (1 + pressure);
+    targetHeartRate = 55 + prog * 10;
+);
+
+function generateGammaburst(base, prog, dose, depth, delivery) (
+    advancePhase(base+0, 40);
+    advancePhase(base+2, 4);
+    gate = phases[base+2] < 0.25 ? 1.0 : 0.0;
+    gate = gate * (0.5 + 0.5 * sin(phases[base+2] * pi2 * 0.5));
+    
+    gammaL = 40 * gate;
+    gammaR = 40 * gate;
+    
+    advancePhase(base+1, 100);
+    advancePhase(base+3, 100.5);
+    asymL = sin(phases[base+1] * pi2) * 0.3;
+    asymR = sin(phases[base+3] * pi2) * 0.3;
+    
+    deliverWave(delivery, gammaL + asymL * 5, gammaR + asymR * 5, base, 0.7 * dose * depth);
+    
+    advancePhase(base+5, 4);
+    mod = 1.0 - 0.1 + 0.1 * sin(phases[base+5] * pi2);
+    
+    advancePhase(base+4, 80);
+    cascade = sin(phases[base+4] * pi2 * 2) * 0.3 * prog;
+    
+    genL = (outL * 0.8 + cascade) * mod;
+    genR = (outR * 0.8 - cascade) * mod;
+    targetHeartRate = 75 + prog * 25;
+);
+
+function generateEkxoEcho(prog, dose, depth, inL, inR) (
+    density = slider16 / 100;
+    state = slider17;
+    
+    state == 0 ? (
+        baseLag = 15 + density * 35;
+        feedback = 0.3 + density * 0.3;
+    ) : state == 1 ? (
+        baseLag = 50 + density * 150;
+        feedback = 0.5 + density * 0.4;
+    ) : (
+        baseLag = 200 + density * 300;
+        feedback = 0.7 + density * 0.29;
+    );
+    
+    advancePhase(21, 0.618);
+    lagMod = 1.0 + sin(phases[21] * pi2) * 0.1 * density;
+    currentLag = floor(baseLag * lagMod * srate / 1000);
+    currentLag < 1 ? currentLag = 1;
+    currentLag >= echoSize ? currentLag = echoSize - 1;
+    
+    echoBufferL[echoWrite] = inL + echoBufferL[echoWrite] * feedback * 0.1;
+    echoBufferR[echoWrite] = inR + echoBufferR[echoWrite] * feedback * 0.1;
+    
+    readPos = echoWrite - currentLag;
+    readPos < 0 ? readPos = readPos + echoSize;
+    delayedL = echoBufferL[readPos];
+    delayedR = echoBufferR[readPos];
+    
+    lag2 = floor(currentLag * 0.618);
+    lag2 < 1 ? lag2 = 1;
+    pos2 = echoWrite - lag2;
+    pos2 < 0 ? pos2 = pos2 + echoSize;
+    echo2L = echoBufferL[pos2] * feedback * 0.5;
+    echo2R = echoBufferR[pos2] * feedback * 0.5;
+    
+    state == 2 ? (
+        lag3 = floor(lag2 * 0.618);
+        lag3 < 1 ? lag3 = 1;
+        pos3 = echoWrite - lag3;
+        pos3 < 0 ? pos3 = pos3 + echoSize;
+        echo3L = echoBufferL[pos3] * feedback * feedback * 0.25;
+        echo3R = echoBufferR[pos3] * feedback * feedback * 0.25;
+    ) : (echo3L = 0; echo3R = 0;);
+    
+    dryWet = 0.35 + density * 0.45;
+    sumL = delayedL + echo2L + echo3L;
+    sumR = delayedR + echo2R + echo3R;
+    
+    genL = (inL * (1-dryWet) + sumL * dryWet) * dose * depth;
+    genR = (inR * (1-dryWet) + sumR * dryWet) * dose * depth;
+    
+    echoWrite = echoWrite + 1;
+    echoWrite >= echoSize ? echoWrite = 0;
+    
+    state == 0 ? targetHeartRate = 65 + density * 10 :
+    state == 1 ? targetHeartRate = 75 + density * 20 :
+    targetHeartRate = 85 + density * 35;
+);
+
+function dispatchCompound(compound, base, prog, dose, depth, inL, inR, delivery) (
+    compound == 0 ? generateDreameater(base, prog, dose, depth, delivery) :
+    compound == 1 ? generateGhostline(base, prog, dose, depth, delivery) :
+    compound == 2 ? generateZenith(base, prog, dose, depth, delivery) :
+    compound == 3 ? generateOverclock(base, prog, dose, depth, delivery) :
+    compound == 4 ? generateGodmode(base, prog, dose, depth, delivery) :
+    compound == 5 ? generateSynthwave(base, prog, dose, depth, delivery) :
+    compound == 6 ? generateFlatline(base, prog, dose, depth, delivery) :
+    compound == 7 ? generateStimjunkie(base, prog, dose, depth, delivery) :
+    compound == 8 ? generateASMRtouch(base, prog, dose, depth, delivery) :
+    compound == 9 ? generateVoidwalker(base, prog, dose, depth, inL, inR, delivery) :
+    compound == 10 ? generateChaoscore(base, prog, dose, depth, delivery) :
+    compound == 11 ? generateElevate(base, prog, dose, depth, delivery) :
+    compound == 12 ? generatePinkheal(base, prog, dose, depth, delivery) :
+    compound == 13 ? generatePhantombass(base, prog, dose, depth, delivery) :
+    compound == 14 ? generateGammaburst(base, prog, dose, depth, delivery) :
+    generateEkxoEcho(prog, dose, depth, inL, inR);
+);
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  AUTOMATION                                                        ║
+// ╚════════════════════════════════════════════════════════════════════╝
+
+function updateAutoStage(progress) (
+    progress < stageComeUp ? (
+        currentStage = 0;
+        stageProgress = progress / stageComeUp;
+    ) : progress < stageBuilding ? (
+        currentStage = 1;
+        stageProgress = (progress - stageComeUp) / (stageBuilding - stageComeUp);
+    ) : progress < stagePeak ? (
+        currentStage = 2;
+        stageProgress = (progress - stageBuilding) / (stagePeak - stageBuilding);
+    ) : progress < stageDecline ? (
+        currentStage = 3;
+        stageProgress = (progress - stagePeak) / (stageDecline - stagePeak);
+    ) : progress < stageCrash ? (
+        currentStage = 4;
+        stageProgress = (progress - stageDecline) / (stageCrash - stageDecline);
+    ) : (
+        currentStage = 5;
+        stageProgress = (progress - stageCrash) / (1 - stageCrash);
+    );
+    stageProgress;
+);
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  SAMPLE PROCESSING                                                 ║
+// ╚════════════════════════════════════════════════════════════════════╝
+
+@sample
+
+inL = spl0;
+inR = spl1;
+
+delayBuffer[delayWrite * 2] = inL;
+delayBuffer[delayWrite * 2 + 1] = inR;
+delayWrite = delayWrite + 1;
+delayWrite >= delaySize ? delayWrite = 0;
+
+time = time + 1;
+
+// Get parameters
+compoundA = slider1;
+compoundB = slider2;
+mixMode = slider3;
+blend = slider4 / 100;
+sessionLen = slider5 * 60 * srate;
+intensity = slider6 / 100;
+autoMode = slider7;
+musicMix = slider8 / 100;
+neuralDepth = slider9 / 100;
+masterVol = slider10 / 100;
+dropTrigger = slider11;
+overdose = slider12;
+toxicity = slider13 / 100;
+echoEnable = slider15;
+infraFloor = slider18;
+phaseDistort = slider19 / 100;
+delivery = slider20;
+
+// Calculate session progress
+sessionProgress = time / sessionLen;
+sessionProgress > 1 ? sessionProgress = 1;
+
+// Auto mode stage progression
+autoMode ? (
+    prog = updateAutoStage(sessionProgress);
+    
+    dropTrigger && currentStage == 2 && stageProgress > 0.5 ? (
+        autoDrop = 1;
+    ) : (autoDrop = 0;);
+    
+    overdose && (currentStage >= 3) ? (
+        autoToxicity = toxicity * (0.5 + stageProgress * 0.5);
+    ) : (
+        autoToxicity = toxicity * (currentStage == 2 ? 1.0 : 0.3);
+    );
+) : (
+    prog = intensity;
+    autoDrop = dropTrigger;
+    autoToxicity = toxicity;
+);
+
+// Mix mode compound selection
+mixMode == 0 && autoMode ? (
+    currentStage < 2 ? (activeA = compoundA; activeB = -1;) :
+    currentStage < 4 ? (activeA = compoundB; activeB = -1;) :
+    (activeA = compoundA; activeB = compoundB;);
+) : mixMode == 1 ? (
+    activeA = compoundA;
+    activeB = compoundB;
+) : (
+    activeA = compoundA;
+    activeB = compoundB;
+);
+
+// Generate Compound A (phases[0-7])
+dispatchCompound(activeA, 0, prog, intensity, neuralDepth, inL, inR, delivery);
+genAL = genL; genAR = genR; hrA = targetHeartRate;
+
+// Generate Compound B (phases[8-15])
+activeB >= 0 && activeB != activeA ? (
+    dispatchCompound(activeB, 8, prog, intensity, neuralDepth * 0.5, inL, inR, delivery);
+    genBL = genL; genBR = genR; hrB = targetHeartRate;
+) : (
+    genBL = 0; genBR = 0; hrB = hrA;
+);
+
+// Mix compounds
+mixMode == 0 ? (
+    neuralL = genAL; neuralR = genAR;
+) : mixMode == 1 ? (
+    neuralL = genAL * blend + genBL * (1-blend);
+    neuralR = genAR * blend + genBR * (1-blend);
+) : (
+    ghostDelay = 20 + prog * 30;
+    ghostPos = delayWrite - floor(ghostDelay * srate / 1000);
+    ghostPos < 0 ? ghostPos = ghostPos + delaySize;
+    ghostL = delayBuffer[ghostPos * 2] * 0.15;
+    ghostR = delayBuffer[ghostPos * 2 + 1] * 0.15;
+    
+    neuralL = genAL + genBL * 0.5 + ghostL;
+    neuralR = genAR + genBR * 0.5 + ghostR;
+);
+
+// EKXO overlay
+activeA != 15 && activeB != 15 && echoEnable ? (
+    generateEkxoEcho(prog, intensity, neuralDepth, inL, inR);
+    neuralL = neuralL * 0.7 + genL * 0.3;
+    neuralR = neuralR * 0.7 + genR * 0.3;
+);
+
+// Infrasonic floor
+infraFloor ? (
+    advancePhase(22, 4 + prog * 14);
+    advancePhase(23, 4 + prog * 14 + 0.5);
+    infraL = sin(phases[22] * pi2) * 0.08 * (0.3 + prog * 0.7);
+    infraR = sin(phases[23] * pi2) * 0.08 * (0.3 + prog * 0.7);
+    neuralL = neuralL + infraL;
+    neuralR = neuralR + infraR;
+);
+
+// The Drop
+autoDrop ? (
+    advancePhase(24, 18);
+    dropWave = sin(phases[24] * pi2) * 0.6;
+    dropWave = dropWave + sin(phases[24] * pi2 * 2) * 0.3;
+    dropWave = dropWave + sin(phases[24] * pi2 * 3) * 0.15;
+    dropSwell = dropSwell * 0.99 + 1.0 * 0.01;
+    dropAmp = dropWave * 2.0 * dropSwell * (autoToxicity / 100);
+    neuralL = neuralL + dropAmp;
+    neuralR = neuralR + dropAmp;
+) : (
+    dropSwell = dropSwell * 0.9;
+);
+
+// Overdose
+overdose ? (
+    targetOD = autoToxicity / 100;
+    time > sessionLen * 0.1 ? (
+        ramp = (time - sessionLen * 0.1) / (sessionLen * 0.9);
+        ramp > 1 ? ramp = 1;
+        targetOD = targetOD * ramp * ramp * (3 - 2 * ramp);
+    ) : targetOD = 0;
+) : targetOD = 0;
+
+smoothedOD = smoothedOD * 0.99998 + targetOD * 0.00002;
+
+smoothedOD > 0.01 ? (
+    od = smoothedOD;
+    
+    bits = 16 - (od * 12);
+    steps = pow(2, bits);
+    neuralL = floor(neuralL * steps) / steps;
+    neuralR = floor(neuralR * steps) / steps;
+    
+    dist = od * 0.5;
+    neuralL = neuralL * (1 + dist);
+    neuralR = neuralR * (1 + dist);
+    neuralL > 0.6 ? neuralL = 1.2 - neuralL : neuralL < -0.6 ? neuralL = -1.2 - neuralL;
+    neuralR > 0.6 ? neuralR = 1.2 - neuralR : neuralR < -0.6 ? neuralR = -1.2 - neuralR;
+    
+    widthLFO = sin(time * pi2 * 0.3 / srate);
+    width = 1.0 - od * (0.6 + 0.4 * widthLFO);
+    mono = (neuralL + neuralR) * 0.5;
+    side = (neuralL - neuralR) * 0.5 * width;
+    neuralL = mono + side;
+    neuralR = mono - side;
+    
+    advancePhase(25, 2000 + od * 6000);
+    ring = sin(phases[25] * pi2) * od * 0.2;
+    neuralL = neuralL + ring;
+    neuralR = neuralR + ring;
+);
+
+// Phase distortion
+phaseDistort > 0 ? (
+    neuralL > 0 ? neuralL = 1 - exp(-neuralL * (1 + phaseDistort * 0.5)) : neuralL = -1 + exp(neuralL * (1 + phaseDistort * 0.5));
+    neuralR > 0 ? neuralR = 1 - exp(-neuralR * (1 + phaseDistort * 0.5)) : neuralR = -1 + exp(neuralR * (1 + phaseDistort * 0.5));
+);
+
+// Master volume
+neuralL = neuralL * masterVol;
+neuralR = neuralR * masterVol;
+
+// Mix with music
+wetness = (100 - musicMix) / 100;
+
+outL = inL + neuralL * wetness;
+outR = inR + neuralR * wetness;
+
+// Safety limit
+outL = outL > 0.95 ? 0.95 : outL < -0.95 ? -0.95 : outL;
+outR = outR > 0.95 ? 0.95 : outR < -0.95 ? -0.95 : outR;
+
+spl0 = outL;
+spl1 = outR;
